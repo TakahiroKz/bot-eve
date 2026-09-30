@@ -89,6 +89,17 @@ Cómo opera:
 - Solo corren las estrategias con `enabled: true`, `stage: demo` (o `live`) y `capital_fraction > 0`. **Hoy todas están en `backtest`**: ninguna superó los criterios de `docs/STRATEGIES.md`. Para probar la conexión, `check --roundtrip` no necesita ninguna estrategia.
 - El modo `live` (dinero real) exige `execution.i_understand_real_money: true` **y** `--yes-real-money`.
 
+## MetaTrader 5 / Libertex (en investigación)
+
+Solo Windows, con la terminal MT5 abierta y la cuenta demo conectada. Detalles y especificaciones
+del broker en [docs/MT5_LIBERTEX.md](docs/MT5_LIBERTEX.md).
+
+```bash
+python -m bot_eve.data mt5-info      # cuenta y costos reales de los símbolos (sin login ni nombre)
+python -m bot_eve.data mt5-sync      # historial de BTCUSD y ETHUSD
+python -m bot_eve.backtest --config config/mt5.yaml compare --intervals 1h 4h --risk-sizing
+```
+
 ## Desarrollo
 
 ```bash

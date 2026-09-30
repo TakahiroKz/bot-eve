@@ -33,11 +33,19 @@ class DataConfig(BaseModel):
 class BacktestConfig(BaseModel):
     fee_rate: float = 0.001  # 0.1% por lado (0.00075 pagando con BNB)
     slippage: float = 0.0005  # 0.05% adverso por lado
+    # Solo CFD (MetaTrader 5). Ver backtest/costs.py. None = igual que fee_rate.
+    entry_fee_rate: float | None = None
+    exit_fee_rate: float | None = None
+    spread_pct: float = 0.0  # spread medio como % del precio
+    swap_pct_per_day: float = 0.0  # costo diario por mantener una posición larga (% del valor)
     initial_cash: float = 1000.0
     size_fraction: float = 1.0
     # El tramo desde esta fecha se reserva y no se toca hasta la evaluación final.
     holdout_start: str = "2025-07-01"
     reports_dir: Path = Path("reports")
+
+    def costs(self):
+        return _costs(self)
 
 
 STAGES = ("backtest", "demo", "live")
@@ -75,6 +83,15 @@ class RiskConfig(BaseModel):
     max_data_age_candles: int = Field(
         3, ge=1
     )  # datos más viejos que N velas se consideran obsoletos
+
+
+def _costs(bt: BacktestConfig):
+    from bot_eve.backtest.costs import Costs
+
+    return Costs(
+        bt.fee_rate, bt.slippage, bt.entry_fee_rate, bt.exit_fee_rate, bt.spread_pct,
+        bt.swap_pct_per_day,
+    )  # fmt: skip
 
 
 class StrategyConfig(BaseModel):

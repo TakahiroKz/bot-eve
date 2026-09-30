@@ -19,7 +19,7 @@ from pathlib import Path
 import pandas as pd
 
 from bot_eve.backtest.compare import compare, summarize
-from bot_eve.backtest.costs import Costs, rules_for
+from bot_eve.backtest.costs import rules_for
 from bot_eve.backtest.engine import RiskSizing, run_backtest
 from bot_eve.backtest.report import write_report
 from bot_eve.backtest.walkforward import OBJECTIVES, split_holdout, walk_forward
@@ -145,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     df = _load(cfg, args.symbol, args.interval, args.final)
-    costs = Costs(bt.fee_rate, bt.slippage)
+    costs = bt.costs()
     rules = rules_for(args.symbol)
     risk = (
         RiskSizing(cfg.risk.risk_per_trade, cfg.risk.default_stop_pct) if args.risk_sizing else None

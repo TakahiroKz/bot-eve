@@ -204,3 +204,13 @@ def test_live_with_both_confirmations_builds_real_money_broker(tmp_path, monkeyp
     monkeypatch.setenv("BINANCE_API_SECRET", "s")
     cfg = cfg_with(tmp_path, mode="live", i_understand_real_money="true")
     assert make_broker(cfg, allow_real_money=True).is_real_money
+
+
+def test_clock_syncs_on_first_call_even_right_after_boot(monkeypatch):
+    """Con el equipo recién encendido (reloj monotónico < 10 min) también debe sincronizar."""
+    import time as time_module
+
+    monkeypatch.setattr(time_module, "monotonic", lambda: 5.0)
+    broker, _ = make()
+    assert abs((broker.now() - pd.Timestamp("2024-01-01 01:00:30", tz="UTC")).total_seconds()) < 5
+    assert len(broker.get_candles("BTCUSDT", "15m", 10)) == 4  # excluye la vela en formación

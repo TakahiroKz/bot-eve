@@ -268,3 +268,41 @@ def test_backtest_risk_sizing_matches_live_risk_manager(tmp_path):
             1000.0, 250.0, manager.stop_pct_for(stop), 1.0, LOOSE, available_quote=1000.0
         )
         assert res.trades.iloc[0]["qty"] == pytest.approx(live_qty, rel=1e-3)
+
+
+# --- costos de CFD (MetaTrader 5): comisión solo en la salida, spread y swap ---------------------
+def test_cfd_commission_only_on_exit():
+    costs = Costs(fee_rate=0.0, slippage=0.0, entry_fee_rate=0.0, exit_fee_rate=0.001)
+    res = run(candles(flat(100, 6)), {0: (BUY, None, None), 3: (SELL, None, None)}, costs=costs)
+    t = res.trades.iloc[0]
+    assert t["qty"] == pytest.approx(10.0)  # la entrada no resta comisión
+    assert t["fees"] == pytest.approx(10.0 * 100 * 0.001)
+    assert t["pnl"] == pytest.approx(-1.0)
+
+
+def test_cfd_spread_raises_entry_price_only():
+    costs = Costs(fee_rate=0.0, slippage=0.0, spread_pct=0.002)
+    res = run(candles(flat(100, 6)), {0: (BUY, None, None), 3: (SELL, None, None)}, costs=costs)
+    t = res.trades.iloc[0]
+    assert t["entry_price"] == pytest.approx(100.2) and t["exit_price"] == pytest.approx(100.0)
+    assert t["return_pct"] == pytest.approx(-0.2 / 100.2, rel=1e-3)
+
+
+def test_cfd_swap_accrues_per_day_held():
+    costs = Costs(fee_rate=0.0, slippage=0.0, swap_pct_per_day=0.0004)
+    df = candles(flat(100, 10), freq="1D")
+    res = run(df, {0: (BUY, None, None), 5: (SELL, None, None)}, costs=costs)
+    t = res.trades.iloc[0]
+    days = (t["exit_time"] - t["entry_time"]).days  # 5 días entre la apertura de la vela 1 y la 6
+    assert days == 5
+    assert t["fees"] == pytest.approx(t["qty"] * 100 * 0.0004 * 5)
+    assert res.equity.iloc[-1] == pytest.approx(1000.0 + t["pnl"])
+    # una posición más corta paga menos swap
+    short = run(df, {0: (BUY, None, None), 2: (SELL, None, None)}, costs=costs).trades.iloc[0]
+    assert short["fees"] < t["fees"]
+
+
+def test_default_costs_are_unchanged_by_the_cfd_fields():
+    costs = Costs()
+    assert costs.entry_fee == costs.exit_fee == costs.fee_rate == 0.001
+    assert costs.spread_pct == 0.0 and costs.swap_pct_per_day == 0.0

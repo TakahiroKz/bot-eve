@@ -62,7 +62,7 @@ class BinanceBroker(Broker):
         self.data_ex = factory(base_opts) if (testnet and data_from_production) else self.ex
         self._markets_loaded: set[int] = set()
         self._clock_offset = pd.Timedelta(0)
-        self._offset_at = 0.0
+        self._offset_at: float | None = None  # None = aún sin sincronizar con el servidor
 
     # --- utilidades -------------------------------------------------------------------
     def _market(self, ex: ccxt.Exchange, symbol: str) -> dict:
@@ -81,7 +81,7 @@ class BinanceBroker(Broker):
     # --- interfaz Broker -----------------------------------------------------------------
     def now(self) -> pd.Timestamp:
         """Hora del servidor (se corrige con la diferencia medida cada 10 minutos)."""
-        if time.monotonic() - self._offset_at > 600:
+        if self._offset_at is None or time.monotonic() - self._offset_at > 600:
             server = pd.Timestamp(self._call(self.ex.fetch_time), unit="ms", tz="UTC")
             self._clock_offset = server - pd.Timestamp.now(tz="UTC")
             self._offset_at = time.monotonic()

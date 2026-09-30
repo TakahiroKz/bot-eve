@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from bot_eve.backtest.costs import Costs, rules_for
+from bot_eve.backtest.costs import rules_for
 from bot_eve.backtest.engine import RiskSizing
 from bot_eve.backtest.metrics import profit_factor, sharpe_ratio
 from bot_eve.backtest.walkforward import param_combinations, split_holdout, walk_forward
@@ -47,7 +47,7 @@ def run_one(job: tuple[Config, str, str, str, bool]) -> dict:
         test_days * per_day,
         objective="total_return",
         min_trades=10,
-        costs=Costs(bt.fee_rate, bt.slippage),
+        costs=bt.costs(),
         rules=rules_for(symbol),
         initial_cash=bt.initial_cash,
         size_fraction=bt.size_fraction,

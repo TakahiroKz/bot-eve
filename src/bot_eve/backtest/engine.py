@@ -98,7 +98,8 @@ def run_backtest(
     sig = signals["signal"].fillna(0).to_numpy(dtype=np.int8)
     stop_arr = signals["stop_pct"].to_numpy(dtype=float)
     target_arr = signals["target_pct"].to_numpy(dtype=float)
-    fee, slip = costs.fee_rate, costs.slippage
+    slip, spread = costs.slippage, costs.spread_pct
+    fee_in, fee_out = costs.entry_fee, costs.exit_fee
 
     cash = float(initial_cash)
     qty = entry_px = entry_cost = 0.0
@@ -113,10 +114,12 @@ def run_backtest(
     def close_position(i: int, price: float, reason: str) -> None:
         nonlocal cash, qty
         proceeds = qty * price
-        exit_fee = proceeds * fee
-        cash += proceeds - exit_fee
-        total_fees = entry_cost_fee + exit_fee
-        pnl = (proceeds - exit_fee) - entry_cost
+        exit_fee = proceeds * fee_out
+        days_held = (idx[i] - idx[entry_i]).total_seconds() / 86400
+        swap = qty * entry_px * costs.swap_pct_per_day * days_held  # CFD: costo por mantener
+        cash += proceeds - exit_fee - swap
+        total_fees = entry_cost_fee + exit_fee + swap
+        pnl = (proceeds - exit_fee - swap) - entry_cost
         trades.append(
             (idx[entry_i], idx[i], entry_px, price, qty, total_fees, pnl,
              pnl / entry_cost, reason)
@@ -127,16 +130,16 @@ def run_backtest(
     for i in range(i0, i1):
         # 1) Ejecutar la orden decidida al cierre de la vela anterior.
         if pending == BUY and qty == 0.0:
-            px = o[i] * (1 + slip)
+            px = o[i] * (1 + slip + spread)
             stop_frac = pending_stop
-            q = cash * size_fraction / (px * (1 + fee))
+            q = cash * size_fraction / (px * (1 + fee_in))
             if risk is not None:
                 stop_frac = risk.stop_pct(pending_stop)
                 q = min(q, cash * risk.risk_per_trade / (px * stop_frac))
             q = rules.round_qty(q)
             if rules.is_valid(q, px):
                 notional = q * px
-                entry_cost_fee = notional * fee
+                entry_cost_fee = notional * fee_in
                 entry_cost = notional + entry_cost_fee
                 cash -= entry_cost
                 qty, entry_px, entry_i = q, px, i
@@ -194,9 +197,13 @@ def buy_and_hold(
     first_open: float, closes: np.ndarray, cash: float, costs: Costs, index: pd.Index
 ) -> pd.Series:
     """Comprar al inicio (con slippage y comisión) y mantener; se valora al cierre."""
-    units = cash / (first_open * (1 + costs.slippage) * (1 + costs.fee_rate))
+    units = cash / (first_open * (1 + costs.slippage + costs.spread_pct) * (1 + costs.entry_fee))
     bench = units * closes
-    bench[-1] *= 1 - costs.slippage - costs.fee_rate  # coste de salir al final
+    bench[-1] *= 1 - costs.slippage - costs.exit_fee  # coste de salir al final
+    days = (index[-1] - index[0]).total_seconds() / 86400
+    bench[-1] -= (
+        units * first_open * costs.swap_pct_per_day * days
+    )  # swap de mantener todo el periodo
     return pd.Series(bench, index=index, name="buy_and_hold")
 
 
