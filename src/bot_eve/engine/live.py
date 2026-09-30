@@ -167,7 +167,10 @@ class LiveEngine:
             log.warning("%s: tamaño 0 (mínimos del par o saldo), no se opera", spec.key)
             return
         fill = self.broker.market_buy(spec.symbol, qty)
-        net = rules.round_qty(fill.net_qty)
+        # Se protege lo que REALMENTE hay disponible: si la comisión no viene informada en la
+        # respuesta de la orden, `fill.net_qty` sería mayor que lo recibido y el stop se rechazaría.
+        held = self.broker.get_balance(spec.symbol[: -len(self.quote)])
+        net = rules.round_qty(min(fill.net_qty, held) if held > 0 else fill.net_qty)
         stop, limit = self.risk.stop_prices(fill.price, stop_pct)
         target_pct = row["target_pct"]
         target = fill.price * (1 + target_pct) if target_pct == target_pct else None

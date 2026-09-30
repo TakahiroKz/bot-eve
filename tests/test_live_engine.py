@@ -312,3 +312,23 @@ def test_backtest_stage_strategies_never_become_slots():
         }
     )
     assert build_slots(cfg) == []
+
+
+def test_stop_covers_what_was_really_received_even_if_the_fee_is_not_reported(env):
+    """Si la respuesta de la compra no informa la comisión (cobrada en el activo base), el stop
+    debe colocarse por el saldo real; con la cantidad pedida el exchange lo rechazaría."""
+    from dataclasses import replace
+
+    real_buy = env.broker.market_buy
+    env.broker.market_buy = lambda symbol, qty: replace(
+        real_buy(symbol, qty), fee=0.0
+    )  # sin comisión
+    env.step(10)
+    env.strategy.plan[env.candle(10)] = (BUY, 0.02, None)
+    env.step(11)
+    assert env.position is not None, "la posición no debe cerrarse por un stop rechazado"
+    stop = env.broker.orders[env.position.stop_order_id]
+    assert (
+        stop["status"] == "open" and stop["qty"] <= 5.0 * 0.999 + 1e-9
+    )  # lo recibido, no lo pedido
+    assert env.position.qty == stop["qty"]
