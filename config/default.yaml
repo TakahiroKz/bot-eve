@@ -8,6 +8,14 @@ data:
   download_workers: 4
   base_url: https://data.binance.vision
 
+backtest:
+  fee_rate: 0.001            # 0.1% por lado (0.00075 pagando con BNB)
+  slippage: 0.0005           # 0.05% adverso por lado
+  initial_cash: 1000
+  size_fraction: 1.0         # fracción del capital por operación
+  holdout_start: "2025-07-01"  # desde aquí los datos se reservan (evaluación final única)
+  reports_dir: reports
+
 logging:
   level: INFO
   file: logs/bot_eve.log

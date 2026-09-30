@@ -2,7 +2,7 @@
 
 Bot de trading automático (Binance spot y MetaTrader 5). Ver [PLAN.md](PLAN.md) para el plan completo.
 
-Estado: **Fase 1 (datos) completada**. Aún no hay estrategias ni ejecución.
+Estado: **Fases 1 (datos) y 2 (motor de backtest) completadas**. Aún no hay estrategias reales ni ejecución.
 
 ## Instalación
 
@@ -35,6 +35,27 @@ df = CandleStore("data_store").read("BTCUSDT", "15m", start="2024-01-01")
 ```
 
 Cada vela remuestreada incluye `n_base` (cuántas velas de 1m la componen); si es menor que el intervalo, hubo un hueco.
+
+## Backtest (Fase 2)
+
+```bash
+python -m bot_eve.backtest run --symbol BTCUSDT --interval 15m --strategy sma_cross \
+    --params fast=10 slow=30 --report reports/sma.html
+python -m bot_eve.backtest walkforward --symbol BTCUSDT --interval 15m --strategy sma_cross \
+    --grid fast=5,10,20 slow=30,50,100 --train-days 90 --test-days 30 --report reports/wf.html
+```
+
+Reglas del simulador (conservadoras, sin look-ahead):
+- La señal usa la vela **cerrada** y se ejecuta en la **apertura de la siguiente**.
+- Comisión (0.1% por lado) y slippage (0.05% por lado) configurables en `config/default.yaml`.
+- Stop y objetivo se evalúan con high/low; si una vela toca ambos, **gana el stop**; si abre más allá del stop, se ejecuta en la apertura.
+- Respeta los filtros del par: paso de cantidad, cantidad mínima y **min notional** (las entradas que no los cumplen se rechazan y se cuentan).
+- Métricas: retorno, buy & hold, Sharpe, máx. drawdown, win rate, profit factor, comisiones, exposición.
+
+Sin sobreajustar:
+- `walkforward` optimiza en una ventana, evalúa en la siguiente y encadena solo los tramos de prueba.
+- Los datos desde `backtest.holdout_start` (2025-07-01) están **reservados**: los comandos normales no los ven. `--final` los evalúa, y debe usarse **una sola vez**, con la estrategia ya decidida.
+- Para crear una estrategia: heredar de `Strategy` (`strategies/base.py`), registrarla en `strategies/__init__.py` y validar con `check_no_lookahead`.
 
 ## Desarrollo
 

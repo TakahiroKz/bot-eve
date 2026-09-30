@@ -29,6 +29,16 @@ class DataConfig(BaseModel):
         return v
 
 
+class BacktestConfig(BaseModel):
+    fee_rate: float = 0.001  # 0.1% por lado (0.00075 pagando con BNB)
+    slippage: float = 0.0005  # 0.05% adverso por lado
+    initial_cash: float = 1000.0
+    size_fraction: float = 1.0
+    # El tramo desde esta fecha se reserva y no se toca hasta la evaluación final.
+    holdout_start: str = "2025-07-01"
+    reports_dir: Path = Path("reports")
+
+
 class LoggingConfig(BaseModel):
     level: str = "INFO"
     file: Path | None = Path("logs/bot_eve.log")
@@ -36,6 +46,7 @@ class LoggingConfig(BaseModel):
 
 class Config(BaseModel):
     data: DataConfig = Field(default_factory=DataConfig)
+    backtest: BacktestConfig = Field(default_factory=BacktestConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
 
