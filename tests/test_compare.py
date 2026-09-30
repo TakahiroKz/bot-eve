@@ -48,3 +48,12 @@ def test_cli_list_and_compare(tmp_path, capsys):
     rc = main(["--config", str(cfg_path), "compare", "--strategies", "sma_cross",
                "--intervals", "15m", "--workers", "1"])  # fmt: skip
     assert rc == 0 and (tmp_path / "rep" / "compare.csv").exists()
+
+
+def test_compare_with_risk_sizing_reports_criteria_columns(tmp_path):
+    cfg = load_config(setup(tmp_path))
+    table = compare(cfg, ["sma_cross"], ["BTCUSDT"], ["15m"], workers=1, risk_sizing=True)
+    assert {"bh_sharpe", "bh_max_drawdown", "windows_pos", "windows_neg"} <= set(table.columns)
+    plain = compare(cfg, ["sma_cross"], ["BTCUSDT"], ["15m"], workers=1)
+    # con riesgo 1% y stop, el capital se arriesga mucho menos: drawdown claramente menor
+    assert table["max_drawdown"].iloc[0] > plain["max_drawdown"].iloc[0]

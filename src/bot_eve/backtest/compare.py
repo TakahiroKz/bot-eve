@@ -14,7 +14,8 @@ from pathlib import Path
 import pandas as pd
 
 from bot_eve.backtest.costs import Costs, rules_for
-from bot_eve.backtest.metrics import profit_factor
+from bot_eve.backtest.engine import RiskSizing
+from bot_eve.backtest.metrics import profit_factor, sharpe_ratio
 from bot_eve.backtest.walkforward import param_combinations, split_holdout, walk_forward
 from bot_eve.common.config import Config
 from bot_eve.data.intervals import to_timedelta
@@ -29,8 +30,8 @@ def windows_for(interval: str) -> tuple[int, int]:
     return WINDOWS.get(interval, (90, 30))
 
 
-def run_one(job: tuple[Config, str, str, str]) -> dict:
-    cfg, strategy, symbol, interval = job
+def run_one(job: tuple[Config, str, str, str, bool]) -> dict:
+    cfg, strategy, symbol, interval, risk_sizing = job
     df = CandleStore(cfg.data.dir).read(symbol, interval)
     df, _holdout = split_holdout(df, cfg.backtest.holdout_start)
     cls = REGISTRY[strategy]
@@ -50,6 +51,9 @@ def run_one(job: tuple[Config, str, str, str]) -> dict:
         rules=rules_for(symbol),
         initial_cash=bt.initial_cash,
         size_fraction=bt.size_fraction,
+        risk=RiskSizing(cfg.risk.risk_per_trade, cfg.risk.default_stop_pct)
+        if risk_sizing
+        else None,
     )
     m = res.metrics
     gross = res.trades["pnl"] + res.trades["fees"] if len(res.trades) else pd.Series(dtype=float)
@@ -68,6 +72,10 @@ def run_one(job: tuple[Config, str, str, str]) -> dict:
         "avg_trade": m["avg_trade_return"],
         "fees": m["total_fees"],
         "exposure": m["exposure"],
+        "bh_sharpe": sharpe_ratio(res.benchmark),
+        "bh_max_drawdown": m["buy_and_hold_max_drawdown"],
+        "windows_pos": sum(w.test_metrics["total_return"] > 0 for w in res.windows),
+        "windows_neg": sum(w.test_metrics["total_return"] < 0 for w in res.windows),
         "trials": len(param_combinations(grid)) * m["windows"],
     }
 
@@ -79,8 +87,11 @@ def compare(
     intervals: list[str],
     workers: int | None = None,
     out: Path | None = None,
+    risk_sizing: bool = False,
 ) -> pd.DataFrame:
-    jobs = [(cfg, s, sym, itv) for s in strategies for sym in symbols for itv in intervals]
+    jobs = [
+        (cfg, s, sym, itv, risk_sizing) for s in strategies for sym in symbols for itv in intervals
+    ]
     workers = workers or os.cpu_count() or 1
     with ProcessPoolExecutor(workers) as pool:
         rows = list(pool.map(run_one, jobs))

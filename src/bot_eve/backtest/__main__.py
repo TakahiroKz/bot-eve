@@ -20,7 +20,7 @@ import pandas as pd
 
 from bot_eve.backtest.compare import compare, summarize
 from bot_eve.backtest.costs import Costs, rules_for
-from bot_eve.backtest.engine import run_backtest
+from bot_eve.backtest.engine import RiskSizing, run_backtest
 from bot_eve.backtest.report import write_report
 from bot_eve.backtest.walkforward import OBJECTIVES, split_holdout, walk_forward
 from bot_eve.common.config import Config, load_config
@@ -85,7 +85,14 @@ def _parser() -> argparse.ArgumentParser:
     cmp_.add_argument("--symbols", nargs="+")
     cmp_.add_argument("--intervals", nargs="+", default=["15m", "1h"])
     cmp_.add_argument("--workers", type=int)
+    cmp_.add_argument("--risk-sizing", action="store_true", help="reglas de riesgo del bot en vivo")
     cmp_.add_argument("--out", type=Path, default=None, help="CSV de salida")
+    for name in ("run", "walkforward"):
+        sub.choices[name].add_argument(
+            "--risk-sizing",
+            action="store_true",
+            help="reglas de riesgo del bot en vivo (1%% por operación + stop)",
+        )
     sub.choices["run"].add_argument("--params", nargs="*", help="p. ej. fast=10 slow=30")
     wf = sub.choices["walkforward"]
     wf.add_argument("--grid", nargs="+", required=True, help="p. ej. fast=5,10 slow=30,50")
@@ -128,6 +135,7 @@ def main(argv: list[str] | None = None) -> int:
             args.intervals,
             args.workers,
             out,
+            args.risk_sizing,
         )
         with pd.option_context("display.width", 200, "display.float_format", "{:.3f}".format):
             print(table.drop(columns=["trials"]).to_string(index=False))
@@ -139,17 +147,24 @@ def main(argv: list[str] | None = None) -> int:
     df = _load(cfg, args.symbol, args.interval, args.final)
     costs = Costs(bt.fee_rate, bt.slippage)
     rules = rules_for(args.symbol)
+    risk = (
+        RiskSizing(cfg.risk.risk_per_trade, cfg.risk.default_stop_pct) if args.risk_sizing else None
+    )
     label = f"{args.strategy} {args.symbol} {args.interval}"
     notes = [
         f"Comisión {bt.fee_rate:.3%} y slippage {bt.slippage:.3%} por lado.",
         "Tramo reservado (holdout)." if args.final else f"Datos previos a {bt.holdout_start}.",
     ]
+    if risk:
+        notes.append(
+            f"Sizing por riesgo: {risk.risk_per_trade:.1%} por operación, stop de emergencia {risk.default_stop_pct:.0%}."
+        )
 
     if args.command == "run":
         params = _parse_params(args.params)
         result = run_backtest(
             df, build_strategy(args.strategy, **params), costs, rules,
-            bt.initial_cash, bt.size_fraction, start=args.start, end=args.end,
+            bt.initial_cash, bt.size_fraction, start=args.start, end=args.end, risk=risk,
         )  # fmt: skip
         _print_metrics(result.metrics)
         report_args = dict(
@@ -163,7 +178,7 @@ def main(argv: list[str] | None = None) -> int:
         make = partial(build_strategy, args.strategy, **_parse_params(args.fixed))
         result = walk_forward(
             df, make, _parse_grid(args.grid), args.train_days * n, args.test_days * n,
-            args.objective, args.min_trades, costs, rules, bt.initial_cash, bt.size_fraction,
+            args.objective, args.min_trades, costs, rules, bt.initial_cash, bt.size_fraction, risk,
         )  # fmt: skip
         for w in result.windows:
             m = w.test_metrics

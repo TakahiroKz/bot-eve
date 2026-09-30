@@ -217,3 +217,54 @@ def test_engine_matches_independent_vectorized_calculation():
         equity *= df["close"].iloc[-1] / entry
     assert len(res.trades) > 10
     assert res.equity.iloc[-1] == pytest.approx(equity, rel=1e-4)
+
+
+# --- sizing por riesgo (mismas reglas que el bot en vivo) --------------------------------------
+from bot_eve.backtest.engine import RiskSizing  # noqa: E402
+
+
+def test_risk_sizing_limits_size_by_distance_to_stop():
+    rows = flat(100, 6)
+    # riesgo 1% de 1000 = 10 USDT; stop 2% a 100 -> 5 unidades
+    res = run(candles(rows), {0: (BUY, 0.02, None)}, risk=RiskSizing(0.01, 0.03))
+    assert res.trades.iloc[0]["qty"] == pytest.approx(5.0)
+
+
+def test_risk_sizing_applies_default_stop_when_strategy_has_none():
+    rows = flat(100, 2) + [(99, 100, 96, 97)] + flat(97, 2)
+    res = run(candles(rows), {0: (BUY, None, None)}, risk=RiskSizing(0.01, 0.03))
+    t = res.trades.iloc[0]
+    assert t["exit_reason"] == "stop" and t["exit_price"] == pytest.approx(97.0)  # 3% bajo 100
+    assert t["qty"] == pytest.approx(10 / (100 * 0.03))
+    # sin risk, la misma estrategia no tendría stop
+    assert run(candles(rows), {0: (BUY, None, None)}).trades.iloc[0]["exit_reason"] == "end"
+
+
+def test_a_stopped_trade_loses_about_the_risk_budget():
+    rows = flat(100, 2) + [(99, 100, 90, 92)] + flat(92, 2)
+    res = run(candles(rows), {0: (BUY, 0.02, None)}, risk=RiskSizing(0.01, 0.03))
+    # sin costos ni slippage, la pérdida en el stop = 1% del capital (10 de 1000)
+    assert res.trades.iloc[0]["pnl"] == pytest.approx(-10.0, abs=0.05)
+
+
+def test_risk_sizing_never_exceeds_available_capital():
+    rows = flat(100, 6)
+    # stop 0.1% -> el riesgo permitiría 100 unidades (10.000 USDT) pero solo hay 1000
+    res = run(candles(rows), {0: (BUY, 0.001, None)}, risk=RiskSizing(0.01, 0.03))
+    assert res.trades.iloc[0]["qty"] * 100 <= 1000.0 + 1e-6
+
+
+def test_backtest_risk_sizing_matches_live_risk_manager(tmp_path):
+    """Backtest y bot en vivo deben dimensionar igual para no validar una cosa y operar otra."""
+    from bot_eve.common.config import RiskConfig
+    from bot_eve.risk.manager import RiskManager
+
+    cfg = RiskConfig(risk_per_trade=0.01, default_stop_pct=0.03)
+    manager = RiskManager(cfg, tmp_path / "KILL")
+    rows = flat(250, 6)
+    for stop in (0.02, 0.05, None):
+        res = run(candles(rows), {0: (BUY, stop, None)}, risk=RiskSizing(0.01, 0.03))
+        live_qty = manager.position_size(
+            1000.0, 250.0, manager.stop_pct_for(stop), 1.0, LOOSE, available_quote=1000.0
+        )
+        assert res.trades.iloc[0]["qty"] == pytest.approx(live_qty, rel=1e-3)

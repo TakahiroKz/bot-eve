@@ -29,6 +29,22 @@ TRADE_COLUMNS = [
 ]  # fmt: skip
 
 
+@dataclass(frozen=True)
+class RiskSizing:
+    """Mismas reglas que el bot en vivo (risk/manager.py).
+
+    - Toda posición lleva stop: el de la estrategia si lo define, si no `default_stop_pct`.
+    - Tamaño = capital * `risk_per_trade` / distancia al stop, limitado por `size_fraction`.
+    """
+
+    risk_per_trade: float = 0.01
+    default_stop_pct: float = 0.03
+
+    def stop_pct(self, strategy_stop: float) -> float:
+        valid = strategy_stop == strategy_stop and strategy_stop > 0 and np.isfinite(strategy_stop)
+        return min(strategy_stop if valid else self.default_stop_pct, 0.5)
+
+
 @dataclass
 class BacktestResult:
     strategy: str
@@ -51,12 +67,16 @@ def run_backtest(
     size_fraction: float = 1.0,
     start: str | pd.Timestamp | None = None,
     end: str | pd.Timestamp | None = None,
+    risk: RiskSizing | None = None,
 ) -> BacktestResult:
     """Simula `strategy` sobre `df`.
 
     Las señales se calculan con todo `df` (para tener historia de calentamiento), pero solo
     se opera dentro de [start, end]. Así un tramo de prueba puede usar velas previas para
     sus indicadores sin operar en ellas.
+
+    Con `risk=None` se invierte `size_fraction` del capital en cada operación y solo hay stop
+    si la estrategia lo define. Con `risk` se aplican las reglas de riesgo del bot en vivo.
     """
     from bot_eve.backtest.metrics import compute_metrics  # evita import circular
 
@@ -108,14 +128,19 @@ def run_backtest(
         # 1) Ejecutar la orden decidida al cierre de la vela anterior.
         if pending == BUY and qty == 0.0:
             px = o[i] * (1 + slip)
-            q = rules.round_qty(cash * size_fraction / (px * (1 + fee)))
+            stop_frac = pending_stop
+            q = cash * size_fraction / (px * (1 + fee))
+            if risk is not None:
+                stop_frac = risk.stop_pct(pending_stop)
+                q = min(q, cash * risk.risk_per_trade / (px * stop_frac))
+            q = rules.round_qty(q)
             if rules.is_valid(q, px):
                 notional = q * px
                 entry_cost_fee = notional * fee
                 entry_cost = notional + entry_cost_fee
                 cash -= entry_cost
                 qty, entry_px, entry_i = q, px, i
-                stop = px * (1 - pending_stop) if pending_stop == pending_stop else np.nan
+                stop = px * (1 - stop_frac) if stop_frac == stop_frac else np.nan
                 target = px * (1 + pending_target) if pending_target == pending_target else np.nan
             else:
                 rejected += 1

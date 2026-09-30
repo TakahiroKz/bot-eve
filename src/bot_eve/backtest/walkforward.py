@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 
 from bot_eve.backtest.costs import Costs, SymbolRules
-from bot_eve.backtest.engine import BacktestResult, buy_and_hold, run_backtest
+from bot_eve.backtest.engine import BacktestResult, RiskSizing, buy_and_hold, run_backtest
 from bot_eve.backtest.metrics import compute_metrics
 from bot_eve.strategies.base import Strategy
 
@@ -73,6 +73,7 @@ def walk_forward(
     rules: SymbolRules = SymbolRules(),  # noqa: B008
     initial_cash: float = 1000.0,
     size_fraction: float = 1.0,
+    risk: RiskSizing | None = None,
 ) -> WalkForwardResult:
     """Walk-forward con ventanas deslizantes (sin solaparse en la parte de prueba)."""
     if objective not in OBJECTIVES:
@@ -100,7 +101,7 @@ def walk_forward(
             strat = make_strategy(**params)
             res = run_backtest(
                 df.loc[:tr_end], strat, costs, rules, initial_cash, size_fraction,
-                start=tr_start, end=tr_end,
+                start=tr_start, end=tr_end, risk=risk,
             )  # fmt: skip
             score = _score(res, objective, min_trades)
             if score > best_score:
@@ -110,7 +111,15 @@ def walk_forward(
             best, best_score = combos[0], float("nan")
         strat = make_strategy(**best)
         test = run_backtest(
-            df.loc[:te_end], strat, costs, rules, cash, size_fraction, start=te_start, end=te_end
+            df.loc[:te_end],
+            strat,
+            costs,
+            rules,
+            cash,
+            size_fraction,
+            start=te_start,
+            end=te_end,
+            risk=risk,
         )
         windows.append(
             WindowResult(tr_start, tr_end, te_start, te_end, best, best_score, test.metrics)
