@@ -119,3 +119,18 @@ def test_minimum_lot_blocks_entries_when_capital_is_too_small(tmp_path):
     e.strategy.plan[T0 + 10 * STEP] = (BUY, 0.04)
     e.step(11)
     assert e.position is None and not e.fake.positions
+
+
+def test_roundtrip_on_mt5_leaves_no_open_position_and_explains_the_stop(capsys, tmp_path):
+    import bot_eve.engine.__main__ as cli
+    from bot_eve.common.config import load_config
+
+    fake = FakeTradingMt5()
+    broker = Mt5Broker("BTCUSD", mt5=fake)
+    cfg = load_config(
+        __import__("pathlib").Path(__file__).resolve().parents[1] / "config" / "mt5.yaml"
+    )
+    assert cli._roundtrip(cfg, broker, "BTCUSD") == 0
+    out = capsys.readouterr().out
+    assert not fake.positions  # no queda nada abierto en la cuenta
+    assert "el SL pertenece a la posición" in out and "estado final" in out

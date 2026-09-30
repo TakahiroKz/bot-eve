@@ -90,13 +90,24 @@ def _roundtrip(cfg: Config, broker: Broker, symbol: str) -> int:
     oid = broker.place_stop_loss(symbol, net, stop, stop * 0.997)
     print(f"  stop colocado ({oid}) en {stop:.2f}: {broker.get_order(symbol, oid).status}")
     broker.cancel_order(symbol, oid)
-    print(f"  stop cancelado: {broker.get_order(symbol, oid).status}")
+    after_cancel = broker.get_order(symbol, oid).status
+    if broker.name == "mt5":
+        print(
+            f"  (MT5) el SL pertenece a la posición y no se cancela aparte: estado {after_cancel}"
+        )
+    else:
+        print(f"  stop cancelado: {after_cancel}")
     sold = broker.market_sell(
         symbol,
         rules.round_qty(min(net, broker.get_balance(symbol[: -len(cfg.execution.quote_asset)]))),
     )
-    print(f"  vendida: {sold.qty} @ {sold.price}")
-    print("OK: el camino completo de órdenes funciona en el testnet.")
+    print(f"  vendida: {sold.qty} @ {sold.price}, costo de cierre {sold.fee:.4f}")
+    final = broker.get_order(symbol, oid).status
+    print(f"  estado final del stop/posición: {final}")
+    if broker.name == "mt5" and final == "open":
+        print("ERROR: la posición sigue abierta tras la venta. Ciérrala a mano en MT5.")
+        return 3
+    print("OK: el camino completo de órdenes funciona en la cuenta demo (compra, stop, venta).")
     return 0
 
 
