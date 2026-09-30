@@ -85,6 +85,9 @@ def _parser() -> argparse.ArgumentParser:
     fx.add_argument("--interval", default="4h")
     fx.add_argument("--symbols", nargs="+")
     fx.add_argument("--risk-sizing", action="store_true")
+    fx.add_argument(
+        "--cash", type=float, help="capital inicial (por defecto el de la configuración)"
+    )
     sub.add_parser("list", help="estrategias disponibles y su estado en la configuración")
     cmp_ = sub.add_parser("compare", help="walk-forward de varias estrategias/pares/intervalos")
     cmp_.add_argument("--strategies", nargs="+", choices=sorted(REGISTRY))
@@ -132,6 +135,7 @@ def _fixed(cfg: Config, args) -> int:
         RiskSizing(cfg.risk.risk_per_trade, cfg.risk.default_stop_pct) if args.risk_sizing else None
     )
     cut = pd.Timestamp(bt.holdout_start, tz="UTC")
+    cash = args.cash or bt.initial_cash
     rows = []
     for symbol in args.symbols or cfg.data.symbols:
         df = CandleStore(cfg.data.dir).read(symbol, args.interval)
@@ -144,7 +148,7 @@ def _fixed(cfg: Config, args) -> int:
         ):
             res = run_backtest(
                 df, build_strategy(args.strategy, **params), bt.costs(symbol), rules_for(symbol),
-                bt.initial_cash, bt.size_fraction, start=start, end=end, risk=risk,
+                cash, bt.size_fraction, start=start, end=end, risk=risk,
             )  # fmt: skip
             m = res.metrics
             rows.append(
@@ -153,12 +157,15 @@ def _fixed(cfg: Config, args) -> int:
                     "retorno%": round(m["total_return"] * 100, 1), "B&H%": round(m["buy_and_hold_return"] * 100, 1),
                     "PF": round(m["profit_factor"], 2), "Sharpe": round(m["sharpe"], 2),
                     "MaxDD%": round(m["max_drawdown"] * 100, 1), "B&H_DD%": round(m["buy_and_hold_max_drawdown"] * 100, 1),
-                    "ops": m["trades"], "win%": round(m["win_rate"] * 100, 1),
+                    "ops": m["trades"], "rechazadas": m["rejected_entries"], "win%": round(m["win_rate"] * 100, 1),
                 }
             )  # fmt: skip
     table = pd.DataFrame(rows)
     with pd.option_context("display.width", 200):
-        print(f"{args.strategy} {args.params or ''} {args.interval}  (datos de {cfg.data.dir})")
+        print(
+            f"{args.strategy} {args.params or ''} {args.interval}  capital {cash:,.0f}  (datos de {cfg.data.dir})"
+        )
+        print("(rechazadas = entradas que no alcanzan el lote mínimo con ese capital)")
         print(table.to_string(index=False))
     return 0
 

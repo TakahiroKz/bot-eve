@@ -112,6 +112,23 @@ Referencia: las mismas velas de **Binance** con los costos de Libertex:
 Si falla 1 o 3, `atr_breakout` **no se despliega en MT5**. Si solo falla 4, se investiga la
 alineación de horas antes de concluir. No se reajustan parámetros para «arreglarlo».
 
+### Primera ejecución y corrección de la condición de prueba
+La primera ejecución usó un capital de 1.000 USD (el valor por defecto) y **falló el criterio 4**
+(operaciones): BTC posterior 1 vs 23, ETH posterior 15 vs 24. Criterios 1, 2 y 3 se cumplían
+(BTC PF 3.75 / ETH 2.00 en desarrollo; drawdowns mucho menores que el buy & hold).
+
+Se investigó, como preveía la regla. **Causa: el lote mínimo**, no la hora ni los datos. Con
+1.000 USD, 0.01 BTC (≈840 USD) supera lo que permite el riesgo del 1%, y el motor rechaza la entrada.
+Reproducido con datos de Binance y los lotes de MT5: BTC posterior 1 operación y 85 entradas
+rechazadas (idéntico a lo observado); ETH 16 (vs 15). Con el saldo real de la demo
+(50.000 USD) el número de operaciones vuelve a la referencia (97/23 y 116/24).
+
+**Corrección:** la condición de la prueba pasa a usar el capital real de la demo (50.000 USD en
+`config/mt5.yaml`) y el comando muestra las entradas rechazadas. Los criterios y umbrales no cambian.
+
+**Consecuencia práctica:** con poco capital el bot **no operará** en MT5 (el lote mínimo lo
+impide). Para BTCUSD a 4h hacen falta del orden de 4.000–5.000 USD.
+
 ## Advertencias
 - Las velas de MT5 vienen en **hora del servidor del broker**, no en UTC, y los precios del CFD
   no coinciden exactamente con los de Binance. Por eso se re-valida con el propio historial.

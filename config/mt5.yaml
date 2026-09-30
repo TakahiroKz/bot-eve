@@ -17,6 +17,7 @@ backtest:
   symbol_costs:
     BTCUSD: {spread_pct: 0.000354, swap_pct_per_day: 0.000442}
     ETHUSD: {spread_pct: 0.002275, swap_pct_per_day: 0.000424}
+  initial_cash: 50000        # saldo de la cuenta demo; con poco capital el lote mínimo rechaza entradas
   holdout_start: "2025-07-01"
   reports_dir: reports/mt5
 
