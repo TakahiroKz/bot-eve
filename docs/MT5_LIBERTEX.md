@@ -18,7 +18,46 @@ Lo marcado «por confirmar» es una inferencia, no un dato leído.
 | Ejecución | A mercado, todo-o-nada | igual |
 | Margen | ~83.79 USD/lote | ~2.68 USD/lote |
 
-## Lectura y cuentas (por confirmar)
+## Medición real con `mt5-info` (cuenta demo, servidor «ForexClub-MT5 Demo Server»)
+| | BTCUSD | ETHUSD |
+|---|---|---|
+| Precio | 83.904,75 | 2.677,57 |
+| Spread (instantánea) | 26.800 pts = **0.032%** | 5.356 pts = **0.200%** |
+| Swap largo | −0.044% por día (≈ −16% anual) | −0.042% por día (≈ −15.5% anual) |
+| Apalancamiento de la cuenta | 1:1000 | |
+| Modo de margen | hedging | |
+| Saldo demo | 50.000 USD | |
+
+- El spread es flotante: esta es una sola instantánea. El histórico (`mt5-sync`) dará el mediano.
+- En la primera lectura el trading algorítmico de la terminal estaba desactivado; hay que
+  activarlo con el botón «Algo Trading» (queda apagado al cambiar de cuenta por la casilla de seguridad).
+- El servidor se llama «ForexClub», no «Libertex» (probablemente el mismo grupo: confirmar).
+
+## ¿Sobreviven los costos de CFD? Estimación con el historial de Binance
+Costos reales de arriba aplicados a las velas de 4h de Binance (BTC, ETH), **solo datos de
+desarrollo**, parámetros fijos y riesgo del bot. Es **en muestra y con precios de Binance**:
+sirve para medir el efecto de los costos, no como validación.
+
+| Estrategia | Par | Costos | Retorno | PF | Sharpe | Días/posición | Costo por op.* |
+|---|---|---|---|---|---|---|---|
+| atr_breakout | BTC | Binance spot | +264% | 2.89 | 1.62 | 7.6 | 0.20% |
+| atr_breakout | BTC | Libertex CFD | +239% | 2.78 | 1.51 | 7.6 | 0.44% |
+| atr_breakout | ETH | Binance spot | +113% | 1.89 | 1.08 | 5.7 | 0.20% |
+| atr_breakout | ETH | Libertex CFD | +101% | 1.82 | 1.00 | 5.7 | 0.34% |
+| sma_cross | BTC | Binance spot | +217% | 2.68 | 1.50 | 9.9 | 0.20% |
+| sma_cross | BTC | Libertex CFD | +189% | 2.52 | 1.38 | 9.9 | 0.54% |
+| sma_cross | ETH | Binance spot | +272% | 2.40 | 1.27 | 8.1 | 0.20% |
+| sma_cross | ETH | Libertex CFD | +241% | 2.31 | 1.19 | 8.0 | 0.45% |
+
+\* comisiones + swap, sin contar spread ni slippage.
+
+Con los costos de Libertex el profit factor baja un 3–7% (p. ej. 2.89 → 2.78 en BTC). Las
+posiciones duran ~6–10 días, así que el swap (≈0.3–0.4% por operación) pesa más que en Binance,
+pero las ganancias medias de una estrategia de tendencia son mucho mayores. **Conclusión
+provisional: los costos de CFD no son el obstáculo; falta validar con el historial propio
+del broker y con un spread mediano realista** (en ETH el spread de 0.2% es el punto débil).
+
+## Lectura y cuentas (estimación inicial, previa a la medición)
 - Margen de 83.79 USD por lote ⇒ precio de BTC ≈ 84 mil con **apalancamiento 1:1000** (inferido).
 - Swap en puntos × 0.001 = **−37.08 USD por lote y día en BTC** (largo), ≈ **0.04% diario ≈ 15%
   anual** si BTC ≈ 84 mil. En corto también es negativo: el broker cobra financiación en ambos lados.

@@ -2,20 +2,22 @@
 # Uso:  python -m bot_eve.data --config config/mt5.yaml mt5-sync
 #       python -m bot_eve.backtest --config config/mt5.yaml compare --intervals 1h 4h --risk-sizing
 #
-# LOS COSTOS SON PROVISIONALES. Sustitúyelos por los reales que imprime:
-#       python -m bot_eve.data mt5-info
+# Los costos de symbol_costs salen de `python -m bot_eve.data mt5-info` (instantánea del spread).
 data:
   dir: data_store/mt5
   symbols: [BTCUSD, ETHUSD]
   start: "2020-01"
 
 backtest:
-  entry_fee_rate: 0.0        # Libertex: comisión 0.1% solo en la salida (según la especificación)
+  entry_fee_rate: 0.0        # comisión 0.1% solo en la salida (según la especificación)
   exit_fee_rate: 0.001
   fee_rate: 0.001
   slippage: 0.0002           # PROVISIONAL
-  spread_pct: 0.001          # PROVISIONAL: reemplazar con el spread mediano de mt5-sync
-  swap_pct_per_day: 0.0004   # PROVISIONAL (~0.04%/día largo): reemplazar con mt5-info
+  # Valores medidos con `mt5-info` (una instantánea; el spread es flotante). Mejorar con el
+  # spread mediano histórico que imprime `mt5-sync`.
+  symbol_costs:
+    BTCUSD: {spread_pct: 0.000319, swap_pct_per_day: 0.000442}
+    ETHUSD: {spread_pct: 0.002000, swap_pct_per_day: 0.000424}
   holdout_start: "2025-07-01"
   reports_dir: reports/mt5
 

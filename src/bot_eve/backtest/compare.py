@@ -47,7 +47,7 @@ def run_one(job: tuple[Config, str, str, str, bool]) -> dict:
         test_days * per_day,
         objective="total_return",
         min_trades=10,
-        costs=bt.costs(),
+        costs=bt.costs(symbol),
         rules=rules_for(symbol),
         initial_cash=bt.initial_cash,
         size_fraction=bt.size_fraction,

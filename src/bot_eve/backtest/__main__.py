@@ -145,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     df = _load(cfg, args.symbol, args.interval, args.final)
-    costs = bt.costs()
+    costs = bt.costs(args.symbol)
     rules = rules_for(args.symbol)
     risk = (
         RiskSizing(cfg.risk.risk_per_trade, cfg.risk.default_stop_pct) if args.risk_sizing else None

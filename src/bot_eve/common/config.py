@@ -30,6 +30,17 @@ class DataConfig(BaseModel):
         return v
 
 
+class SymbolCosts(BaseModel):
+    """Costos propios de un símbolo (sustituyen a los generales). Solo se indican los que cambian."""
+
+    fee_rate: float | None = None
+    slippage: float | None = None
+    entry_fee_rate: float | None = None
+    exit_fee_rate: float | None = None
+    spread_pct: float | None = None
+    swap_pct_per_day: float | None = None
+
+
 class BacktestConfig(BaseModel):
     fee_rate: float = 0.001  # 0.1% por lado (0.00075 pagando con BNB)
     slippage: float = 0.0005  # 0.05% adverso por lado
@@ -38,14 +49,15 @@ class BacktestConfig(BaseModel):
     exit_fee_rate: float | None = None
     spread_pct: float = 0.0  # spread medio como % del precio
     swap_pct_per_day: float = 0.0  # costo diario por mantener una posición larga (% del valor)
+    symbol_costs: dict[str, SymbolCosts] = Field(default_factory=dict)
     initial_cash: float = 1000.0
     size_fraction: float = 1.0
     # El tramo desde esta fecha se reserva y no se toca hasta la evaluación final.
     holdout_start: str = "2025-07-01"
     reports_dir: Path = Path("reports")
 
-    def costs(self):
-        return _costs(self)
+    def costs(self, symbol: str | None = None):
+        return _costs(self, symbol)
 
 
 STAGES = ("backtest", "demo", "live")
@@ -85,13 +97,17 @@ class RiskConfig(BaseModel):
     )  # datos más viejos que N velas se consideran obsoletos
 
 
-def _costs(bt: BacktestConfig):
+def _costs(bt: BacktestConfig, symbol: str | None = None):
     from bot_eve.backtest.costs import Costs
 
-    return Costs(
-        bt.fee_rate, bt.slippage, bt.entry_fee_rate, bt.exit_fee_rate, bt.spread_pct,
-        bt.swap_pct_per_day,
-    )  # fmt: skip
+    merged = {
+        "fee_rate": bt.fee_rate, "slippage": bt.slippage, "entry_fee_rate": bt.entry_fee_rate,
+        "exit_fee_rate": bt.exit_fee_rate, "spread_pct": bt.spread_pct,
+        "swap_pct_per_day": bt.swap_pct_per_day,
+    }  # fmt: skip
+    if symbol and symbol in bt.symbol_costs:  # el spread y el swap cambian mucho por símbolo
+        merged.update(bt.symbol_costs[symbol].model_dump(exclude_none=True))
+    return Costs(**merged)
 
 
 class StrategyConfig(BaseModel):
