@@ -42,6 +42,45 @@ diluir la calidad. Es una prueba nueva: no se reoptimiza nada.
 - **Correlación:** se informa la correlación de retornos entre pares; más pares no es diversificación real si van juntos.
 - **Límites de cartera si se amplía:** máx. 4 posiciones abiertas a la vez y riesgo total en los stops ≤ 4% del capital.
 
+### 3.1 Resultado (ejecutado una vez, `research/universe_test.py`)
+**Paso 1, desarrollo** (costos duros 0.1% comisión + 0.1% slippage por lado): **6 de 8 pares pasan**.
+
+| Par | Ops | PF neto | Retorno | Caída máx. | Caída del B&H | Pasa |
+|---|---|---|---|---|---|---|
+| SOL | 90 | 2.59 | +136% | −13.7% | −96.6% | sí |
+| XRP | 106 | 2.11 | +128% | −27.3% | −84.5% | sí |
+| ADA | 111 | 1.81 | +93% | −15.2% | −92.2% | sí |
+| DOGE | 105 | 2.16 | +152% | −25.8% | −92.9% | sí |
+| LINK | 117 | 1.26 | +26% | −24.5% | −90.4% | sí (por poco) |
+| AVAX | 88 | 2.36 | +172% | −14.5% | −93.7% | sí |
+| LTC | 113 | 1.07 | +5% | −19.8% | −89.7% | **no** |
+| DOT | 110 | 0.81 | −15% | −34.6% | −94.2% | **no** |
+
+Correlación media de retornos diarios entre los pares: 0.21.
+
+**Paso 2, holdout (una sola evaluación)** para los 6 que pasan: cartera equiponderada **+4.7%** en 15 meses,
+**PF agregado 1.31**, **6 de 6 pares positivos** (SOL +7.2%, XRP +2.6%, ADA +0.2%, DOGE +0.8%, LINK +10.2%, AVAX +7.4%;
+21–26 operaciones cada uno). **Veredicto pre-registrado: aprueba ampliar el universo.** El holdout de estos pares queda consumido.
+
+**Cautelas (importantes):**
+1. **Sesgo de supervivencia:** los 8 pares se eligieron hoy entre las monedas grandes y líquidas, es decir, las que sobrevivieron.
+   Monedas que colapsaron o se eliminaron no están en la prueba; el desarrollo sobrestima el resultado.
+2. **Pocos datos por par en el holdout** (≈ 22 operaciones): ADA (+0.2%) y DOGE (+0.8%) son casi planos. Los 6 «positivos» no son 6
+   confirmaciones independientes: es el mismo mercado.
+3. **El desarrollo incluye el mercado alcista de 2020-2021**, muy favorable a estas monedas.
+4. **Falta medir el efecto en la cartera con capital compartido:** el tope del 25% por posición y el capital de 500 USD limitan
+   a ~4 posiciones a la vez; el rendimiento de la cartera con 9 pares no es la suma de los pares.
+5. **Hoy el motor en vivo reparte `capital_fraction` entre TODAS las combinaciones** (con 9 pares cada posición sería ~8% del capital, no
+   25%): antes de ampliar hay que implementar un máximo de posiciones simultáneas.
+
+## 3.2 Interés compuesto o plano
+El bot **reinvierte** (compuesto): el tamaño de cada posición sale del capital **actual** (riesgo 1% del capital actual, tope 25% del
+capital actual). Tras pérdidas las posiciones se reducen solas; tras ganancias crecen. Simulación 500 USD, 6.7 años, 3 pares:
+compuesto **922 USD (+9.5% anual)** vs tamaño fijo sobre 500 USD **≈ 856 USD (≈ +8.3%)** (aproximado: la curva plana no incluye el
+marcado diario de posiciones abiertas). A este nivel de retorno la diferencia es pequeña; el compuesto amplifica en ambos sentidos.
+Proyección con +9.5% anual sin aportes: 1 año 548 · 3 años 656 · 5 años 787 · 10 años 1.239 USD. Con 50 USD/mes de aporte:
+1 año 1.173 · 3 años 2.718 · 5 años 4.569 · 10 años 10.975 USD (aportado 6.500; ganancia 4.475).
+
 ## 4. Cuándo activar Libertex (condiciones, no fechas)
 Todas deben cumplirse:
 1. Fase Q0-FX superada con los criterios fijados en `docs/AI_TRADER_PLAN.md` §10 (hoy: **costo aprobado en demo, ventaja sin demostrar**).

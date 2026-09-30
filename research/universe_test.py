@@ -61,7 +61,7 @@ if not passed:
     raise SystemExit(0)
 
 # correlación de retornos diarios entre los pares incluidos (desarrollo)
-daily = pd.concat(
+daily = pd.concat(  # noqa: E501
     {
         s: run(s, end=cut - pd.Timedelta(seconds=1)).equity.resample("1D").last().pct_change()
         for s in passed + REF
