@@ -21,7 +21,26 @@ backtest:
   holdout_start: "2025-07-01"
   reports_dir: reports/mt5
 
-strategies: {}               # las estrategias no se despliegan en MT5 hasta validar con estos datos
+# Estrategia desplegable SOLO en la cuenta DEMO de MT5. Aprobó la comprobación de consistencia con el
+# historial del broker (docs/MT5_LIBERTEX.md). Las órdenes las envía Mt5Broker; el SL va en el servidor.
+strategies:
+  atr_breakout:
+    enabled: true
+    stage: demo
+    capital_fraction: 0.5      # 0.25 por símbolo (BTCUSD y ETHUSD)
+    symbols: [BTCUSD, ETHUSD]
+    intervals: [4h]
+    params: {entry_len: 40, exit_len: 20, stop_atr: 2.0}
+
+execution:
+  broker: mt5
+  mode: demo                 # demo = la cuenta conectada DEBE ser demo (si es real, se rechaza)
+  quote_asset: USD
+  state_dir: state/mt5       # estado propio, separado de la demo de Binance
+  candles_lookback: 600
+  poll_seconds: 20
+  candle_delay_seconds: 3
+  i_understand_real_money: false
 
 logging:
-  file: null
+  file: logs/bot_eve_mt5.log

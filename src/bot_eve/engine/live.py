@@ -76,12 +76,12 @@ class LiveEngine:
 
     # --- equity y día ---------------------------------------------------------------------
     def equity(self) -> float:
-        total = self.broker.get_balance(self.quote)
-        for spec in self.slots:
-            pos = self.state.slots[spec.key].position
-            if pos:
-                total += pos.qty * self.broker.get_price(spec.symbol)
-        return total
+        held = [
+            (spec.symbol, self.state.slots[spec.key].position.qty)
+            for spec in self.slots
+            if self.state.slots[spec.key].position
+        ]
+        return self.broker.equity(self.quote, held)
 
     def _roll_day(self, equity: float, now: pd.Timestamp) -> None:
         day = now.strftime("%Y-%m-%d")
@@ -161,7 +161,7 @@ class LiveEngine:
         stop_pct = self.risk.stop_pct_for(row["stop_pct"])
         qty = self.risk.position_size(
             equity, price, stop_pct, spec.capital_fraction, rules,
-            self.broker.get_balance(self.quote),
+            self.broker.buying_power(self.quote),
         )  # fmt: skip
         if qty <= 0:
             log.warning("%s: tamaño 0 (mínimos del par o saldo), no se opera", spec.key)

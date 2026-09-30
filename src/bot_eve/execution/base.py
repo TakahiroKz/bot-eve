@@ -57,7 +57,7 @@ def fee_in_quote(fill: Fill) -> float:
 
 
 def _quote_of(symbol: str) -> str:
-    for quote in ("USDT", "USDC", "BUSD", "BTC", "ETH", "BNB"):
+    for quote in ("USDT", "USDC", "BUSD", "USD", "BTC", "ETH", "BNB"):
         if symbol.endswith(quote) and len(symbol) > len(quote):
             return quote
     return ""
@@ -82,6 +82,15 @@ class Broker(ABC):
     @abstractmethod
     def get_balance(self, asset: str) -> float:
         """Saldo libre (disponible) del activo."""
+
+    def equity(self, quote: str, positions: list[tuple[str, float]]) -> float:
+        """Capital total. En spot: saldo libre + valor de lo que se tiene (activo - no CFD).
+        Un CFD no gasta efectivo al comprar, así que su broker lo sobrescribe."""
+        return self.get_balance(quote) + sum(q * self.get_price(sym) for sym, q in positions)
+
+    def buying_power(self, quote: str) -> float:
+        """Importe máximo de valor que se puede comprar ahora (spot: el saldo libre)."""
+        return self.get_balance(quote)
 
     @abstractmethod
     def get_symbol_rules(self, symbol: str) -> SymbolRules: ...

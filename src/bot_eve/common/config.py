@@ -66,7 +66,7 @@ STAGES = ("backtest", "demo", "live")
 class ExecutionConfig(BaseModel):
     """Ejecución en vivo. `mode` decide qué estrategias pueden operar (ver StrategyConfig)."""
 
-    broker: Literal["binance"] = "binance"
+    broker: Literal["binance", "mt5"] = "binance"
     mode: Literal["demo", "live"] = "demo"  # demo = Binance Testnet, live = dinero real
     quote_asset: str = "USDT"
     # Las señales se calculan con velas del mercado real (API pública, sin claves) aunque

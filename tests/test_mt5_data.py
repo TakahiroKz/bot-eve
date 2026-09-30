@@ -165,5 +165,14 @@ def test_mt5_config_file_is_valid_and_models_libertex_costs():
     assert btc.spread_pct == pytest.approx(0.000354) and eth.spread_pct == pytest.approx(0.002275)
     assert btc.swap_pct_per_day > 0 and eth.swap_pct_per_day > 0
     assert eth.spread_pct > 5 * btc.spread_pct  # ETH cuesta mucho más de entrar que BTC
-    assert cfg.data.symbols == ["BTCUSD", "ETHUSD"] and cfg.strategies == {}
+    assert cfg.data.symbols == ["BTCUSD", "ETHUSD"]
+    assert (
+        list(cfg.active_strategies("demo")) == ["atr_breakout"]
+        and cfg.active_strategies("live") == {}
+    )
+    assert cfg.execution.broker == "mt5" and cfg.execution.mode == "demo"
+    assert (
+        cfg.execution.state_dir.as_posix() == "state/mt5"
+        and cfg.execution.i_understand_real_money is False
+    )
     assert cfg.backtest.costs("OTRO").spread_pct == 0.0  # símbolos sin override usan lo general

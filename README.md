@@ -100,6 +100,18 @@ python -m bot_eve.data mt5-sync      # historial de BTCUSD y ETHUSD
 python -m bot_eve.backtest --config config/mt5.yaml compare --intervals 1h 4h --risk-sizing
 ```
 
+### Demo en MT5 (cuenta demo únicamente)
+`config/mt5.yaml` deja `atr_breakout` en `stage: demo` para BTCUSD y ETHUSD (4h). Con MT5 abierto,
+la cuenta **demo** conectada y **Algo Trading en verde**:
+
+```powershell
+python -m bot_eve.engine --config config/mt5.yaml check                       # no opera
+python -m bot_eve.engine --config config/mt5.yaml check --roundtrip BTCUSD    # compra, SL, vende (mínimo)
+python -m bot_eve.engine --config config/mt5.yaml run
+```
+Si la cuenta conectada es real, el modo demo se rechaza. Con poco capital el lote mínimo impide
+operar (BTCUSD necesita ~4.000–5.000 USD). Estado separado en `state/mt5/`.
+
 ## Desarrollo
 
 ```bash

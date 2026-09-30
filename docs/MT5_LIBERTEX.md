@@ -129,6 +129,29 @@ rechazadas (idéntico a lo observado); ETH 16 (vs 15). Con el saldo real de la d
 **Consecuencia práctica:** con poco capital el bot **no operará** en MT5 (el lote mínimo lo
 impide). Para BTCUSD a 4h hacen falta del orden de 4.000–5.000 USD.
 
+### Resultado con capital de 50.000 USD (criterios sin cambios)
+| Símbolo | Periodo | Retorno | PF | Sharpe | Máx. DD | B&H DD | Operaciones (ref.) | Rechazadas |
+|---|---|---|---|---|---|---|---|---|
+| BTCUSD | desarrollo | +276.3% | 2.94 | 1.63 | −17.6% | −77.2% | 99 (97) | 0 |
+| BTCUSD | posterior | +0.5% | 1.02 | 0.09 | −17.2% | −53.5% | 28 (23) | 0 |
+| ETHUSD | desarrollo | +107.8% | 1.89 | 1.07 | −12.2% | −81.4% | 117 (116) | 0 |
+| ETHUSD | posterior | +14.6% | 1.84 | 0.87 | −13.7% | −68.6% | 25 (24) | 0 |
+
+**Cumple los cuatro criterios.** Los datos del broker reproducen los de Binance (99 vs 97 y 117 vs 116
+operaciones en desarrollo). Matices: BTC posterior es casi plano (PF 1.02, +0.5%; en Binance +4.7%),
+lo que confirma que el tramo reciente es el más débil. **Esto valida la ejecución y los costos,
+no que vaya a ser rentable**: con ~1–2 operaciones al mes por par, semanas de demo no prueban rentabilidad.
+
+**Decisión:** `atr_breakout` pasa a demo en MT5 (cuenta demo únicamente). No hay evaluación con dinero real.
+
+## Conector de órdenes (`Mt5Broker`)
+- Equity = capital de la cuenta (un CFD no gasta efectivo); poder de compra ≤ 1x el capital.
+- Stop = SL de la posición en el **servidor**; cerrar la posición lo elimina.
+- Detecta si la cuenta es real o demo desde MT5 y **rechaza el modo demo sobre una cuenta real**.
+- Exige Algo Trading activado (botón en verde); avisa cómo activarlo.
+- Cantidad en unidades del activo ↔ lotes (contrato 1 BTC/ETH); respeta lote mínimo y paso.
+- Probado solo con un MT5 simulado; **falta validarlo contra tu demo** (ver README).
+
 ## Advertencias
 - Las velas de MT5 vienen en **hora del servidor del broker**, no en UTC, y los precios del CFD
   no coinciden exactamente con los de Binance. Por eso se re-valida con el propio historial.
