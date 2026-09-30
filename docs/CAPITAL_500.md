@@ -73,6 +73,35 @@ Correlación media de retornos diarios entre los pares: 0.21.
 5. **Hoy el motor en vivo reparte `capital_fraction` entre TODAS las combinaciones** (con 9 pares cada posición sería ~8% del capital, no
    25%): antes de ampliar hay que implementar un máximo de posiciones simultáneas.
 
+### 3.3 Cartera con capital compartido (pre-registro, escrito ANTES de ejecutar)
+Simulador: `bot_eve/backtest/portfolio.py` (una caja, riesgo 1% del patrimonio actual, tope 25% por posición, una posición por par,
+máximo `max_positions`; las señales que no caben se descartan). Universo A = BTC, ETH, BNB (referencia). Universo B = A + SOL, XRP,
+ADA, DOGE, LINK, AVAX. Costos: BTC/ETH/BNB config por defecto; nuevos pares comisión 0.1% + slippage 0.1% por lado. 500 USD.
+Configuración principal fijada: `max_positions = 4`. Sensibilidad (solo informativa, no se elige la mejor): 3 y 6.
+Criterios (desarrollo, antes de 2025-07-01), para B con `max_positions = 4`: (1) CAGR mayor que el de A; (2) caída máxima mejor que −25%;
+(3) PF >= 1.3; (4) al menos 150 operaciones. Holdout (una vez, solo si pasa el desarrollo): retorno > 0 y PF > 1.
+Aviso: el holdout de los 6 pares nuevos ya se consumió a nivel de par (§3.1); aquí es una comprobación de consistencia, no evidencia fresca.
+Si B no supera los criterios, el universo ampliado NO se activa y se queda A.
+
+**Resultado §3.3 (desarrollo, 2020-01 a 2025-06, `research/portfolio_test.py`):**
+
+| Escenario | Ops | CAGR | Caída máx. | PF | Ops/mes | Señales descartadas |
+|---|---|---|---|---|---|---|
+| A (3 pares), 4 pos. | 323 | +36% | −29.2% | 1.70 | 4.9 | 0 |
+| **B (9 pares), 4 pos.** | 595 | +94% | **−41.3%** | 1.70 | 9.0 | 1315 |
+| B, 3 pos. (sensib.) | 489 | +71% | −38.2% | 1.64 | 7.4 | 1803 |
+| B, 6 pos. (sensib.) | 714 | +107% | −45.2% | 1.58 | 10.8 | 164 |
+
+Criterios de B: CAGR > A **sí**, PF >= 1.3 **sí**, >= 150 ops **sí**, caída máx. mejor que −25% **NO** (−41.3%).
+**Veredicto pre-registrado: B NO pasa; el universo ampliado no se activa con esta configuración** (riesgo 1% por operación, tope 25%).
+Por año (B): 2020 +170%, 2021 +382%, 2022 −26%, 2023 +90%, 2024 +143%, 2025(1.er sem.) −14%; (A): +70, +132, −16, +23, +37, −2.
+Lectura: el retorno sale casi todo de 2020-21 y 2023-24; la caída máx. casi se duplica porque con más pares hay más posiciones a la vez
+y caen juntas (mismo mercado). El simulador con capital compartido da cifras muy superiores a las del análisis anterior de 3 pares por
+separado porque en el desarrollo incluye el mercado alcista; NO son cifras para esperar en el futuro.
+**Transparencia:** tras el veredicto, por curiosidad miré también el tramo holdout (2025-07 en adelante) de la cartera, que el pre-registro
+reservaba si el desarrollo pasaba: A +2.8% CAGR (PF 1.09, caída −25%), B +6.6% CAGR (PF 1.09, caída −40.6%). Ya no es una evaluación
+limpia; no se usa para aprobar nada. Como era de esperar, el mercado reciente rinde mucho menos que el histórico.
+
 ## 3.2 Interés compuesto o plano
 El bot **reinvierte** (compuesto): el tamaño de cada posición sale del capital **actual** (riesgo 1% del capital actual, tope 25% del
 capital actual). Tras pérdidas las posiciones se reducen solas; tras ganancias crecen. Simulación 500 USD, 6.7 años, 3 pares:
