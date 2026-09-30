@@ -244,10 +244,24 @@ class Mt5Broker(Broker):
             return OrderInfo(order_id, "unknown")
         d = deals[-1]
         size = self._info(symbol).trade_contract_size
-        if d.reason != getattr(self.mt5, "DEAL_REASON_SL", 4):
-            log.warning("La posición %s se cerró por otro motivo (reason=%s)", ticket, d.reason)
+        self._log_close_reason(ticket, d.reason)
         return OrderInfo(order_id, "filled", d.volume * size, d.price,
                          float(-(d.commission + d.swap + getattr(d, "fee", 0.0))), self.currency)  # fmt: skip
+
+    def _log_close_reason(self, ticket: int, reason: int) -> None:
+        """Motivo del cierre (DEAL_REASON_*): el SL y los cierres del propio bot son normales."""
+        sl = getattr(self.mt5, "DEAL_REASON_SL", 4)
+        expert = getattr(self.mt5, "DEAL_REASON_EXPERT", 3)
+        tp = getattr(self.mt5, "DEAL_REASON_TP", 5)
+        stop_out = getattr(self.mt5, "DEAL_REASON_SO", 6)
+        if reason == stop_out:
+            log.error("STOP OUT: el broker cerró la posición %s por falta de margen", ticket)
+        elif reason == tp:
+            log.info("La posición %s se cerró por take profit del servidor", ticket)
+        elif reason not in (sl, expert):
+            log.warning(
+                "La posición %s se cerró manualmente u otro motivo (reason=%s)", ticket, reason
+            )
 
     def cancel_order(self, symbol: str, order_id: str) -> None:
         """No hace nada: el SL desaparece al cerrar la posición y así, si la venta falla,

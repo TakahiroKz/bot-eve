@@ -153,3 +153,28 @@ def test_position_closed_manually_is_reported_filled_not_lost():
     fake._close(next(iter(fake.positions.values())), 84500.0, fake.DEAL_REASON_CLIENT)
     assert b.get_order("BTCUSD", sid).status == "filled"
     assert b.get_order("BTCUSD", "999999").status == "unknown"
+
+
+@pytest.mark.parametrize(
+    ("reason", "level", "text"),
+    [
+        (4, None, None),  # SL del servidor: normal
+        (3, None, None),  # cierre del propio bot por API: normal
+        (0, "WARNING", "manualmente"),  # cerrada a mano en la terminal
+        (6, "ERROR", "STOP OUT"),  # el broker cerró por falta de margen: grave
+    ],
+)
+def test_close_reason_logging(reason, level, text, caplog):
+    import logging
+
+    b, fake = broker()
+    b.market_buy("BTCUSD", 0.5)
+    sid = b.place_stop_loss("BTCUSD", 0.5, 80000.0, 79900.0)
+    fake._close(next(iter(fake.positions.values())), 80000.0, reason)
+    with caplog.at_level(logging.DEBUG, logger="bot_eve.execution.mt5"):
+        assert b.get_order("BTCUSD", sid).status == "filled"
+    warned = [r for r in caplog.records if r.levelno >= logging.WARNING]
+    if level is None:
+        assert not warned
+    else:
+        assert warned and warned[0].levelname == level and text in warned[0].getMessage()

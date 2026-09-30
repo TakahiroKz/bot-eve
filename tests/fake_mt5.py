@@ -17,7 +17,7 @@ class FakeTradingMt5:
     ORDER_TIME_GTC = 0
     ORDER_FILLING_FOK, ORDER_FILLING_IOC, ORDER_FILLING_RETURN = 0, 1, 2
     DEAL_ENTRY_IN, DEAL_ENTRY_OUT = 0, 1
-    DEAL_REASON_CLIENT, DEAL_REASON_SL = 0, 4
+    DEAL_REASON_CLIENT, DEAL_REASON_EXPERT, DEAL_REASON_SL, DEAL_REASON_SO = 0, 3, 4, 6
     ACCOUNT_TRADE_MODE_REAL, ACCOUNT_MARGIN_MODE_RETAIL_HEDGING = 2, 2
     TIMEFRAME_M15, TIMEFRAME_H1, TIMEFRAME_H4 = 15, 16385, 16388
 
@@ -116,7 +116,7 @@ class FakeTradingMt5:
                 order=ticket, deal=self.deals[-1].ticket, volume=req["volume"], price=req["price"]
             )
         pos = self.positions[req["position"]]
-        deal = self._close(pos, req["price"], self.DEAL_REASON_CLIENT)
+        deal = self._close(pos, req["price"], self.DEAL_REASON_EXPERT)  # cierre por API/robot
         return self._done(
             order=deal.ticket, deal=deal.ticket, volume=req["volume"], price=req["price"]
         )
