@@ -1,0 +1,26 @@
+# Forex / metales en la demo de MT5 para medir la viabilidad del scalping (docs/AI_TRADER_PLAN.md §10).
+# Uso:  python -m bot_eve.backtest --config config/mt5_fx.yaml base-rates --interval 5m --by-hour
+#
+# LOS COSTOS SON PROVISIONALES. El spread histórico de las velas es 0 (no sirve) y la API de Python no
+# informa la comisión: mídelos con `check --roundtrip EURUSD` en horario activo (Londres / Nueva York) y
+# lee la comisión en Especificación del símbolo. La tabla de sensibilidad muestra qué pasa con otros spreads.
+data:
+  dir: data_store/mt5
+  symbols: [EURUSD, GBPUSD, USDJPY, AUDUSD]
+  start: "2020-01"
+
+backtest:
+  entry_fee_rate: 0.0
+  exit_fee_rate: 0.0           # PROVISIONAL: sin comisión. Si hay comisión por lote, conviértela a fracción del valor.
+  fee_rate: 0.0
+  slippage: 0.000005           # PROVISIONAL (0.05 pip por lado)
+  spread_pct: 0.00003          # PROVISIONAL (~0.3 pip en EURUSD)
+  swap_pct_per_day: 0.0
+  initial_cash: 250
+  holdout_start: "2026-01-01"  # el tramo más reciente queda reservado para la validación fuera de muestra
+  reports_dir: reports/mt5_fx
+
+strategies: {}
+
+logging:
+  file: null

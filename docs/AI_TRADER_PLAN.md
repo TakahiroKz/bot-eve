@@ -314,3 +314,34 @@ propuesta: está escrita para otro mercado.
    de peor spread. Si ninguno lo cumple, el scalping en este broker se descarta.
 5. Si hay símbolos que pasan: añadir cortos al motor; implementar la estrategia A con desarrollo/validación/fuera de muestra
    separados, probar contra el azar con triple barrera, y solo entonces B y C.
+
+
+---
+
+## 11. Capital 250 + 250 (Binance + Libertex) y primeras mediciones de Forex (2026-09-30)
+
+### 11.1 Qué permite cada mitad con 250 USD
+| | Binance spot (250 USD) | Libertex MT5 (250 USD) |
+|---|---|---|
+| Estrategia de 4h (`atr_breakout`) | Sí: stop ~4% y riesgo 1% = 2.5 USD → posiciones de ~60 USD (> mínimo de 5 USD) | **No**: lote mínimo BTC 0.01 (~840 USD) y ETH 0.1 (~270 USD) obligan a arriesgar mucho más del 1%; el gestor de riesgo no operaría |
+| Scalping | Costo 0.9–1.3 R (inviable) | Posible solo en Forex con spread bajo (por medir) |
+| Apalancamiento | ninguno | el lote mínimo de EURUSD (0.01 = ~1.130 USD) es ≈ 4.5x el capital: hace falta una **política explícita de apalancamiento máximo** (hoy el conector limita a 1x y bloquearía toda operación) |
+
+La diversificación entre plataformas reduce el riesgo de la plataforma, pero con 250 USD por lado cada mitad queda por debajo
+de los mínimos útiles. Decisión pendiente (tuya): dónde va cada dólar según lo que se valide.
+
+### 11.2 Mediciones de la demo (Forex)
+- Historial descargado: EURUSD/GBPUSD/USDJPY/AUDUSD con **1h desde 2020-01, 15m desde 2022-09 (~4 años) y 5m desde 2025-05 (~1,3 años)**.
+- Lote mínimo 0.01 (100.000 unidades de contrato); swap largo EURUSD −0.0073% diario, GBPUSD −0.0040%.
+- **No fiables:** spread actual (la captura fue en la pausa diaria: USDJPY/AUDUSD con 0 puntos, XAUUSD sin precio) y **spread
+  histórico = 0** en las velas (el broker no lo guarda). La **comisión por lote no la expone la API de Python**.
+- El costo real se mide con `check --roundtrip SÍMBOLO` en horario activo y leyendo la comisión en «Especificación».
+
+### 11.3 Herramienta nueva: `base-rates`
+```powershell
+python -m bot_eve.backtest --config config/mt5_fx.yaml base-rates --interval 5m --by-hour
+```
+Para cada símbolo entra en todas las velas con stop 1.2×ATR / objetivo 1.8×ATR (sin mirar el futuro, sin cruzar huecos) y muestra
+el costo en R, la esperanza bruta/neta, el acierto necesario, el desglose por hora del día y una **tabla de sensibilidad al
+spread** (0.2 / 0.5 / 1 / 2 pips) que no depende de los valores provisionales. Validada con cripto: esperanza bruta ≈ 0 y costo
+en R de 0.65–0.89 (15m, costo 0.30%).

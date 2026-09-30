@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from bot_eve.backtest import base_rates as br
 from bot_eve.backtest.compare import compare, summarize
 from bot_eve.backtest.costs import rules_for
 from bot_eve.backtest.engine import RiskSizing, run_backtest
@@ -88,6 +89,26 @@ def _parser() -> argparse.ArgumentParser:
     fx.add_argument(
         "--cash", type=float, help="capital inicial (por defecto el de la configuración)"
     )
+    brp = sub.add_parser(
+        "base-rates", help="ventaja exigida (en R) para cubrir costos, entrando al azar"
+    )
+    brp.add_argument("--symbols", nargs="+")
+    brp.add_argument("--interval", default="5m")
+    brp.add_argument("--tp-atr", type=float, default=1.8)
+    brp.add_argument("--sl-atr", type=float, default=1.2)
+    brp.add_argument("--horizon", type=int, help="velas máximas de la operación")
+    brp.add_argument(
+        "--by-hour",
+        action="store_true",
+        help="desglose por bloques de 4 h del día (hora del broker)",
+    )
+    brp.add_argument(
+        "--spread-pips",
+        nargs="+",
+        type=float,
+        default=[0.2, 0.5, 1.0, 2.0],
+        help="escenarios de spread (pips) para la tabla de sensibilidad",
+    )
     sub.add_parser("list", help="estrategias disponibles y su estado en la configuración")
     cmp_ = sub.add_parser("compare", help="walk-forward de varias estrategias/pares/intervalos")
     cmp_.add_argument("--strategies", nargs="+", choices=sorted(REGISTRY))
@@ -121,6 +142,58 @@ def _print_metrics(m: dict) -> None:
         f"PF {m['profit_factor']:.2f} | Comisiones {m['total_fees']:.2f} | "
         f"Exposición {m['exposure']:.1%} | Rechazadas {m['rejected_entries']}"
     )
+
+
+def _base_rates(cfg: Config, args) -> int:
+    """Descriptivo (entradas al azar, sin parámetros ajustados): usa todos los datos disponibles."""
+    barriers = br.Barriers(args.tp_atr, args.sl_atr)
+    print(f"Barreras: stop {barriers.sl_atr}×ATR / objetivo {barriers.tp_atr}×ATR (R:R {barriers.rr:.2f}); "
+          f"acierto al azar = {barriers.random_win:.1%}. Entradas en TODAS las velas.")  # fmt: skip
+    rows, hours = [], {}
+    for symbol in args.symbols or cfg.data.symbols:
+        df = CandleStore(cfg.data.dir).read(symbol, args.interval)
+        if df.empty:
+            print(f"{symbol}: sin datos {args.interval}")
+            continue
+        out = br.outcomes(df, args.interval, barriers, args.horizon)
+        costs = cfg.backtest.costs(symbol)
+        frac = br.cost_fraction(costs)
+        res = br.summarize(out, frac, barriers)
+        rows.append({
+            "símbolo": symbol, "velas": res["n"], "desde": str(df.index[0].date()),
+            "stop%": f"{res['stop_pct_median']:.4%}", "P(obj.) azar": f"{res['p_tp']:.1%}",
+            "costo usado": f"{frac:.4%}", "costo_R": f"{res['cost_R']:.2f}",
+            "esperanza bruta R": f"{res['gross_R']:+.3f}", "esperanza neta R": f"{res['net_R']:+.3f}",
+            "acierto necesario": f"{res['win_needed']:.1%}" if res["win_needed"] < 1 else ">100%",
+            "mejora necesaria": f"{res['lift_pts']:+.1f} pts" if res["win_needed"] < 1 else "imposible",
+        })  # fmt: skip
+        if args.by_hour:
+            hours[symbol] = br.by_hour_block(out, frac)
+        if "JPY" in symbol.upper() or len(symbol) == 6 and symbol.isalpha():
+            price = float(df["close"].median())
+            sens = []
+            for sp in args.spread_pips:
+                c = br.cost_fraction(costs, sp, symbol, price)
+                r = br.summarize(out, c, barriers)
+                sens.append({"spread (pips)": sp, "costo_R": f"{r['cost_R']:.2f}",
+                             "acierto necesario": f"{r['win_needed']:.0%}" if r["win_needed"] < 1 else ">100%",
+                             "mejora": f"{r['lift_pts']:+.0f} pts" if r["win_needed"] < 1 else "imposible"})  # fmt: skip
+            hours.setdefault("_sens_" + symbol, pd.DataFrame(sens))
+    with pd.option_context("display.width", 220, "display.max_columns", 30):
+        print(pd.DataFrame(rows).to_string(index=False))
+        for key, table in hours.items():
+            if key.startswith("_sens_"):
+                print(
+                    f"\nSensibilidad al spread (comisión y slippage de la configuración) - {key[6:]}:"
+                )
+                print(table.to_string(index=False))
+            else:
+                print(f"\nPor hora del día (hora del broker) - {key}:")
+                print(table.round(4).to_string())
+    print(
+        "\nNota: los costos de la configuración son provisionales; mídelos con `check --roundtrip` en horario activo."
+    )
+    return 0
 
 
 def _fixed(cfg: Config, args) -> int:
@@ -178,6 +251,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "fixed":
         return _fixed(cfg, args)
+    if args.command == "base-rates":
+        return _base_rates(cfg, args)
     if args.command == "list":
         for name, cls in sorted(REGISTRY.items()):
             sc = cfg.strategies.get(name)

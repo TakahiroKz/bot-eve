@@ -176,3 +176,41 @@ def test_mt5_config_file_is_valid_and_models_libertex_costs():
         and cfg.execution.i_understand_real_money is False
     )
     assert cfg.backtest.costs("OTRO").spread_pct == 0.0  # símbolos sin override usan lo general
+
+
+def test_mt5_info_warns_when_there_is_no_quote_and_about_missing_commission(monkeypatch, capsys):
+    fake = FakeMt5()
+    fake.symbol_info_tick = lambda symbol: SimpleNamespace(
+        bid=0.0, ask=0.0
+    )  # pausa diaria: sin cotización
+    monkeypatch.setattr("bot_eve.data.__main__.Mt5Client", lambda: Mt5Client(fake))
+    assert main(["mt5-info", "--symbols", "BTCUSD"]) == 0
+    out = capsys.readouterr().out
+    assert "SIN COTIZACIÓN" in out and "NO expone la comisión" in out
+
+
+def test_mt5_sync_flags_a_zero_historical_spread_as_unusable(monkeypatch, capsys, tmp_path):
+    class ZeroSpread(FakeMt5):
+        def copy_rates_range(self, symbol, timeframe, date_from, date_to):
+            arr = super().copy_rates_range(symbol, timeframe, date_from, date_to)
+            arr["spread"] = 0
+            return arr
+
+    monkeypatch.setattr("bot_eve.data.__main__.Mt5Client", lambda: Mt5Client(ZeroSpread()))
+    assert (
+        main(
+            [
+                "mt5-sync",
+                "--symbols",
+                "BTCUSD",
+                "--intervals",
+                "1h",
+                "--from",
+                "2024-01",
+                "--dir",
+                str(tmp_path),
+            ]
+        )
+        == 0
+    )
+    assert "spread histórico = 0" in capsys.readouterr().out

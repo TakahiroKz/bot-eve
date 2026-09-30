@@ -133,6 +133,14 @@ exchange: lee `status.json` y `trades.jsonl` que escribe cada bot. Solo escucha 
 cabeceras `Host` ajenas. El botón de **parada de emergencia** requiere `DASHBOARD_TOKEN` en `.env`
 (una clave larga y propia); sin ella, el panel es solo de lectura.
 
+### Viabilidad del scalping: costo en R (`base-rates`)
+```powershell
+python -m bot_eve.backtest base-rates --symbols BTCUSDT --interval 15m --by-hour                 # cripto
+python -m bot_eve.backtest --config config/mt5_fx.yaml base-rates --interval 5m --by-hour       # Forex (MT5)
+```
+Muestra qué acierto mínimo necesitaría un modelo, entrando al azar, para cubrir los costos del instrumento.
+Ver `docs/AI_TRADER_PLAN.md` (secciones 9–11).
+
 ## Desarrollo
 
 ```bash

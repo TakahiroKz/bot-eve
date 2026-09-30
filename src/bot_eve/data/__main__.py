@@ -59,9 +59,19 @@ def _mt5(args, client: Mt5Client | None = None) -> int:
                 print(
                     f"  lote mín {spec.volume_min} paso {spec.volume_step} máx {spec.volume_max}; stops mín {spec.stops_level} pts"
                 )
-                print(
-                    f"  precio {spec.price:,.2f} | spread actual {spec.spread_points} pts = {spec.spread_pct:.4%}"
-                )
+                if spec.price <= 0:
+                    print(
+                        "  SIN COTIZACIÓN ahora (mercado cerrado o pausa diaria): repite en horario activo."
+                    )
+                else:
+                    print(
+                        f"  precio {spec.price:,.5g} | spread actual {spec.spread_points} pts"
+                        f" = {spec.spread_pct:.4%}"
+                    )
+                    if spec.spread_points == 0:
+                        print(
+                            "  ⚠ spread 0: probablemente sin cotización real ahora; no lo uses para costos."
+                        )
                 print(
                     f"  swap largo {spec.swap_long} / corto {spec.swap_short} (modo {spec.swap_mode})"
                     + (
@@ -70,7 +80,15 @@ def _mt5(args, client: Mt5Client | None = None) -> int:
                         else ""
                     )
                 )
-            print("\nCopia estos valores a config/mt5.yaml (spread_pct y swap_pct_per_day).")
+            print(
+                "\nLa API de Python NO expone la comisión por lote: léela en «Especificación» del símbolo o"
+            )
+            print(
+                "mide el costo real con: python -m bot_eve.engine --config config/mt5.yaml check --roundtrip SÍMBOLO"
+            )
+            print(
+                "(en horario activo). Copia spread y swap a la configuración (spread_pct y swap_pct_per_day)."
+            )
         else:
             store = CandleStore(args.dir)
             for symbol in args.symbols:
@@ -79,6 +97,10 @@ def _mt5(args, client: Mt5Client | None = None) -> int:
                     n = sync_symbol(client, store, symbol, interval, args.start)
                     spread = median_spread_pct(store, symbol, interval, point)
                     print(f"{symbol} {interval}: {n} velas | spread mediano histórico {spread:.4%}")
+                    if spread == spread and spread < 1e-9:
+                        print(
+                            "   ⚠ spread histórico = 0: el broker no lo guarda en las velas; NO sirve para costos."
+                        )
         client.shutdown()
         return 0
     except Mt5Error as exc:
