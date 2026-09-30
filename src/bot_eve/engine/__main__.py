@@ -20,6 +20,7 @@ from bot_eve.engine.live import KillSwitch, LiveEngine, build_slots
 from bot_eve.engine.state import StateStore
 from bot_eve.execution.base import Broker, BrokerError
 from bot_eve.execution.factory import make_broker
+from bot_eve.notify import make_notifier
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -156,7 +157,8 @@ def main(argv: list[str] | None = None) -> int:
             return check(cfg, broker, args.roundtrip)
         if broker.is_real_money:
             print("⚠ MODO LIVE: se operará con DINERO REAL.")
-        engine = LiveEngine(cfg, broker, store, build_slots(cfg))
+        label = f"{broker.name} {cfg.execution.mode}"
+        engine = LiveEngine(cfg, broker, store, build_slots(cfg), make_notifier(cfg, label), label)
         if not engine.slots:
             print(
                 "No hay estrategias activas para este modo. Revisa `strategies:` en la configuración."

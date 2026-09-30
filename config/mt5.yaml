@@ -42,5 +42,11 @@ execution:
   candle_delay_seconds: 3
   i_understand_real_money: false
 
+notify:
+  label: "MT5 demo"
+  telegram:
+    enabled: false
+    daily_summary_hour: 13
+
 logging:
   file: logs/bot_eve_mt5.log

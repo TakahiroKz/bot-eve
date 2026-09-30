@@ -64,6 +64,18 @@ risk:
   max_consecutive_errors: 5
   max_data_age_candles: 3
 
+notify:
+  telegram:
+    enabled: false            # true tras crear el bot y poner TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID en .env
+    daily_summary_hour: 13    # resumen diario (hora del broker)
+
+dashboard:                    # python -m bot_eve.dashboard  ->  http://127.0.0.1:8765
+  host: 127.0.0.1             # solo accesible desde este PC
+  port: 8765
+  bots:
+    - {name: "Binance demo", state_dir: state}
+    - {name: "MT5 demo", state_dir: state/mt5}
+
 logging:
   level: INFO
   file: logs/bot_eve.log

@@ -332,3 +332,129 @@ def test_stop_covers_what_was_really_received_even_if_the_fee_is_not_reported(en
         stop["status"] == "open" and stop["qty"] <= 5.0 * 0.999 + 1e-9
     )  # lo recibido, no lo pedido
     assert env.position.qty == stop["qty"]
+
+
+# --- alertas y estado para el dashboard ---------------------------------------------------------------
+class Capture:
+    def __init__(self):
+        self.messages = []
+
+    def send(self, text, critical=False):
+        self.messages.append((text, critical))
+        return True
+
+
+def with_notifier(tmp_path, **risk):
+    e = Env(tmp_path, **risk)
+    cap = Capture()
+    e.engine.notifier = cap
+    return e, cap
+
+
+def test_entry_exit_and_stop_hit_send_alerts(tmp_path):
+    e, cap = with_notifier(tmp_path)
+    e.step(10)
+    e.strategy.plan[e.candle(10)] = (BUY, 0.02, None)
+    e.step(11)
+    assert "COMPRA BTCUSDT" in cap.messages[-1][0] and "Stop" in cap.messages[-1][0]
+    e.broker.set_price("BTCUSDT", 97.0, low=96.0)
+    e.step(11)
+    assert "🛑 CIERRE BTCUSDT (stop)" in cap.messages[-1][0] and "P&L -" in cap.messages[-1][0]
+
+
+def test_signal_exit_alert_shows_profit(tmp_path):
+    e, cap = with_notifier(tmp_path)
+    e.step(10)
+    e.strategy.plan[e.candle(10)] = (BUY, 0.02, None)
+    e.step(11)
+    e.broker.prices["BTCUSDT"] = 110.0
+    e.strategy.plan[e.candle(11)] = (SELL, None, None)
+    e.step(12)
+    assert "✅ CIERRE" in cap.messages[-1][0] and "P&L +" in cap.messages[-1][0]
+
+
+def test_kill_switch_alerts_are_critical(tmp_path):
+    e, cap = with_notifier(tmp_path)
+    e.step(10)
+    e.store.dir.mkdir(exist_ok=True)
+    e.store.kill_path.write_text("kill")
+    with pytest.raises(KillSwitch):
+        e.step(11)
+    assert any("KILL SWITCH" in t and crit for t, crit in cap.messages)
+
+
+def test_error_streak_alerts_once_then_kill(tmp_path):
+    e, cap = with_notifier(tmp_path, max_consecutive_errors=3)
+    e.step(10)
+    with pytest.raises(KillSwitch):
+        for _ in range(3):
+            e.broker.fail_with = BrokerError("caída")
+            e.step(11)
+    texts = [t for t, _ in cap.messages]
+    assert sum("Error de conexión" in t for t in texts) == 1  # solo al empezar la racha
+    assert any("demasiados errores" in t for t in texts)
+
+
+def test_daily_loss_limit_alert_is_sent_once_per_day(tmp_path):
+    e, cap = with_notifier(tmp_path)
+    e.step(10)
+    e.engine.state.day_start_equity = 2000.0
+    for i in (10, 11):
+        e.strategy.plan[e.candle(i)] = (BUY, 0.02, None)
+    e.step(11)
+    e.step(12)
+    assert sum("No se abren posiciones" in t for t, _ in cap.messages) == 1
+
+
+def test_a_broken_notifier_never_stops_trading(tmp_path):
+    e = Env(tmp_path)
+
+    class Broken:
+        def send(self, *a, **k):
+            raise RuntimeError("telegram caído")
+
+    e.engine.notifier = Broken()
+    e.step(10)
+    e.strategy.plan[e.candle(10)] = (BUY, 0.02, None)
+    e.step(11)
+    assert e.position is not None  # la compra y su stop siguen funcionando
+
+
+def test_daily_summary_is_sent_once_per_day_after_the_configured_hour(tmp_path):
+    e, cap = with_notifier(tmp_path)
+    e.cfg.notify.telegram.daily_summary_hour = 2  # T0 + 10 velas de 15 min = 02:30
+    e.step(4)  # 01:00: aún no
+    assert not any("Resumen diario" in t for t, _ in cap.messages)
+    e.step(10)
+    e.step(11)
+    assert sum("Resumen diario" in t for t, _ in cap.messages) == 1
+
+
+def test_status_snapshot_for_the_dashboard(tmp_path):
+    e, _ = with_notifier(tmp_path)
+    e.step(10)
+    e.strategy.plan[e.candle(10)] = (BUY, 0.02, 0.05)
+    e.step(11)
+    e.broker.prices["BTCUSDT"] = 103.0
+    e.step(11)
+    status = json.loads(e.store.status_path.read_text())
+    assert status["label"] and status["mode"] == "demo" and status["real_money"] is False
+    assert (
+        status["equity"] > 0
+        and status["consecutive_errors"] == 0
+        and status["kill_active"] is False
+    )
+    (pos,) = status["positions"]
+    assert pos["symbol"] == "BTCUSDT" and pos["protected"] is True
+    assert pos["price"] == 103.0 and pos["unrealized_pnl"] == pytest.approx(
+        (103.0 - 100.0) * pos["qty"]
+    )
+    assert pos["stop_price"] == pytest.approx(98.0) and pos["target_price"] == pytest.approx(105.0)
+
+
+def test_status_shows_error_count_while_the_connection_is_down(tmp_path):
+    e, _ = with_notifier(tmp_path, max_consecutive_errors=5)
+    e.step(10)
+    e.broker.fail_with = BrokerError("red")
+    e.step(11)
+    assert json.loads(e.store.status_path.read_text())["consecutive_errors"] == 1

@@ -125,6 +125,32 @@ class StrategyConfig(BaseModel):
         return self.enabled and STAGES.index(self.stage) >= STAGES.index(mode)
 
 
+class TelegramConfig(BaseModel):
+    enabled: bool = False
+    # Resumen diario: primera pasada del bot a partir de esta hora (hora del broker, 0-23).
+    daily_summary_hour: int = Field(13, ge=0, le=23)
+
+
+class NotifyConfig(BaseModel):
+    """Alertas. El token y el chat van en .env (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID), nunca aquí."""
+
+    telegram: TelegramConfig = Field(default_factory=TelegramConfig)
+    label: str | None = None  # prefijo de los mensajes; por defecto "<broker> <modo>"
+
+
+class DashboardBot(BaseModel):
+    name: str
+    state_dir: Path
+
+
+class DashboardConfig(BaseModel):
+    """Dashboard local de solo lectura (sin claves del exchange: lee los archivos de estado)."""
+
+    host: str = "127.0.0.1"
+    port: int = Field(8765, ge=1, le=65535)
+    bots: list[DashboardBot] = Field(default_factory=list)
+
+
 class LoggingConfig(BaseModel):
     level: str = "INFO"
     file: Path | None = Path("logs/bot_eve.log")
@@ -136,6 +162,8 @@ class Config(BaseModel):
     strategies: dict[str, StrategyConfig] = Field(default_factory=dict)
     execution: ExecutionConfig = Field(default_factory=ExecutionConfig)
     risk: RiskConfig = Field(default_factory=RiskConfig)
+    notify: NotifyConfig = Field(default_factory=NotifyConfig)
+    dashboard: DashboardConfig = Field(default_factory=DashboardConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
     @model_validator(mode="after")

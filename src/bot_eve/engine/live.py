@@ -22,6 +22,7 @@ from bot_eve.common.config import Config, StrategyConfig
 from bot_eve.data.intervals import to_timedelta
 from bot_eve.engine.state import Position, Slot, State, StateStore, slot_key
 from bot_eve.execution.base import Broker, BrokerError, fee_in_quote
+from bot_eve.notify import Notifier, NullNotifier
 from bot_eve.risk.manager import RiskManager
 from bot_eve.strategies import build_strategy
 from bot_eve.strategies.base import BUY, SELL, Strategy
@@ -66,13 +67,101 @@ def _slots_for(cfg: Config, name: str, sc: StrategyConfig) -> list[SlotSpec]:
 
 
 class LiveEngine:
-    def __init__(self, cfg: Config, broker: Broker, store: StateStore, slots: list[SlotSpec]):
+    def __init__(
+        self,
+        cfg: Config,
+        broker: Broker,
+        store: StateStore,
+        slots: list[SlotSpec],
+        notifier: Notifier | None = None,
+        label: str = "",
+    ):
         self.cfg, self.broker, self.store, self.slots = cfg, broker, store, slots
+        self.notifier = notifier or NullNotifier()
+        self.label = label or f"{broker.name} {cfg.execution.mode}"
+        self._limit_alert_day = ""
+        self._last_equity: float | None = None
         self.risk = RiskManager(cfg.risk, store.kill_path)
         self.quote = cfg.execution.quote_asset
         self.state: State = store.load()
         for spec in slots:
             self.state.slots.setdefault(spec.key, Slot())
+
+    # --- alertas y estado (nunca deben romper el trading) ----------------------------------------
+    def _say(self, text: str, critical: bool = False) -> None:
+        try:
+            self.notifier.send(text, critical=critical)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Fallo al enviar una alerta (%s)", type(exc).__name__)
+
+    def _after_step(self, equity: float, now: pd.Timestamp) -> None:
+        for action in (
+            lambda: self._daily_summary(equity, now),
+            lambda: self._write_status(equity, now),
+        ):
+            try:
+                action()
+            except Exception as exc:  # noqa: BLE001 - el estado/resumen no deben detener el bot
+                log.warning(
+                    "Fallo al actualizar el estado/resumen (%s: %s)", type(exc).__name__, exc
+                )
+
+    def _write_status(self, equity: float, now: pd.Timestamp) -> None:
+        positions = []
+        for spec in self.slots:
+            pos = self.state.slots[spec.key].position
+            if not pos:
+                continue
+            try:
+                price = self.broker.get_price(spec.symbol)
+            except BrokerError:
+                price = pos.entry_price
+            pnl = (price - pos.entry_price) * pos.qty
+            positions.append(
+                {
+                    "key": spec.key, "strategy": spec.strategy_name, "symbol": spec.symbol,
+                    "qty": pos.qty, "entry_price": pos.entry_price, "entry_time": pos.entry_time,
+                    "price": price, "unrealized_pnl": pnl,
+                    "unrealized_pct": price / pos.entry_price - 1,
+                    "stop_price": pos.stop_price, "target_price": pos.target_price,
+                    "protected": pos.stop_order_id is not None,
+                }
+            )  # fmt: skip
+        start = self.state.day_start_equity
+        self.store.save_status(
+            {
+                "updated_at": pd.Timestamp.now(tz="UTC").isoformat(),
+                "broker_time": now.isoformat(),
+                "label": self.label,
+                "broker": self.broker.name,
+                "mode": self.cfg.execution.mode,
+                "real_money": bool(self.broker.is_real_money),
+                "equity": equity,
+                "day_start_equity": start,
+                "day_pnl_pct": (equity / start - 1) if start > 0 else 0.0,
+                "consecutive_errors": self.state.consecutive_errors,
+                "kill_active": self.risk.kill_requested(),
+                "poll_seconds": self.cfg.execution.poll_seconds,
+                "positions": positions,
+                "slots": [
+                    {"key": k, "last_candle": sl.last_candle} for k, sl in self.state.slots.items()
+                ],
+            }
+        )  # fmt: skip
+
+    def _daily_summary(self, equity: float, now: pd.Timestamp) -> None:
+        hour = self.cfg.notify.telegram.daily_summary_hour
+        day = now.strftime("%Y-%m-%d")
+        if now.hour < hour or self.state.last_summary_day == day:
+            return
+        self.state.last_summary_day = day
+        start = self.state.day_start_equity
+        opened = sum(1 for sl in self.state.slots.values() if sl.position)
+        change = (equity / start - 1) if start > 0 else 0.0
+        self._say(
+            f"📊 Resumen diario\nCapital: {equity:,.2f} ({change:+.2%} hoy)\n"
+            f"Posiciones abiertas: {opened} · errores seguidos: {self.state.consecutive_errors}"
+        )
 
     # --- equity y día ---------------------------------------------------------------------
     def equity(self) -> float:
@@ -93,20 +182,35 @@ class LiveEngine:
         """Una pasada por todas las combinaciones. Lanza KillSwitch si hay que detenerse."""
         if self.risk.kill_requested():
             self.flatten_all("kill")
+            self._say(
+                "🚨 KILL SWITCH: archivo KILL detectado; posiciones cerradas y bot detenido", True
+            )
             raise KillSwitch("archivo KILL detectado")
         now = self.broker.now()
         try:
             equity = self.equity()
+            self._last_equity = equity
             self._roll_day(equity, now)
             for spec in self.slots:
                 self._process(spec, equity, now)
             self.state.consecutive_errors = 0
+            self._after_step(equity, now)
         except BrokerError as exc:
             self.state.consecutive_errors += 1
             log.error("Error de broker (%d seguidos): %s", self.state.consecutive_errors, exc)
+            if self._last_equity is not None:  # que el dashboard vea el contador de errores
+                try:
+                    self._write_status(self._last_equity, now)
+                except Exception:  # noqa: BLE001
+                    pass
+            if self.state.consecutive_errors == 1:
+                self._say(
+                    f"⚠️ Error de conexión con el broker: {type(exc).__name__}. Se reintentará."
+                )
             if self.state.consecutive_errors >= self.cfg.risk.max_consecutive_errors:
                 self.store.save(self.state)
                 self.flatten_all("errores")
+                self._say("🚨 KILL SWITCH: demasiados errores seguidos; bot detenido", True)
                 raise KillSwitch("demasiados errores seguidos") from exc
         finally:
             self.store.save(self.state)
@@ -155,6 +259,9 @@ class LiveEngine:
         decision = self.risk.can_open(equity, self.state.day_start_equity)
         if not decision.ok:
             log.warning("%s: no se abre posición: %s", spec.key, decision.reason)
+            if self._limit_alert_day != self.state.day:  # una alerta por día
+                self._limit_alert_day = self.state.day
+                self._say(f"⛔ No se abren posiciones: {decision.reason}")
             return
         rules = self.broker.get_symbol_rules(spec.symbol)
         price = self.broker.get_price(spec.symbol)
@@ -179,6 +286,10 @@ class LiveEngine:
             net, fill.price, fill.time.isoformat(), fee_in_quote(fill), None, stop, target
         )
         log.info("%s: COMPRA %.8f @ %.2f, stop %.2f", spec.key, net, fill.price, stop)
+        self._say(
+            f"🟢 COMPRA {spec.symbol} {net:g} @ {fill.price:,.2f}\n"
+            f"Stop {stop:,.2f} (−{stop_pct:.1%}) · {spec.strategy_name} {spec.interval}"
+        )
         self.store.save(self.state)
         self._ensure_stop(spec, slot, limit)
 
@@ -227,6 +338,11 @@ class LiveEngine:
             }
         )  # fmt: skip
         log.info("%s: CIERRE (%s) @ %.2f pnl %.4f", spec.key, reason, price, pnl)
+        icon = "🛑" if reason == "stop" else ("✅" if pnl >= 0 else "🔴")
+        self._say(
+            f"{icon} CIERRE {spec.symbol} ({reason}) @ {price:,.2f}\n"
+            f"P&L {pnl:+,.2f} ({pnl / cost:+.2%}) · {spec.strategy_name}"
+        )
         slot.position = None
 
     def _manage_position(self, spec: SlotSpec, slot: Slot) -> None:
@@ -279,5 +395,6 @@ class LiveEngine:
                 time.sleep(self.cfg.execution.poll_seconds)
         except KeyboardInterrupt:
             log.info("Detenido por el usuario. Los stops del exchange siguen activos.")
+            self._say("⏹ Bot detenido por el usuario. Los stops del exchange siguen activos.")
         except KillSwitch as exc:
             log.error("KILL SWITCH: %s", exc)

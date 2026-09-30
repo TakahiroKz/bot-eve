@@ -32,6 +32,7 @@ class State:
     day: str = ""
     day_start_equity: float = 0.0
     consecutive_errors: int = 0
+    last_summary_day: str = ""  # día (broker) del último resumen diario enviado
     slots: dict[str, Slot] = field(default_factory=dict)
 
 
@@ -45,6 +46,7 @@ class StateStore:
         self.path = self.dir / "state.json"
         self.trades_path = self.dir / "trades.jsonl"
         self.kill_path = self.dir / "KILL"
+        self.status_path = self.dir / "status.json"
 
     def load(self) -> State:
         if not self.path.exists():
@@ -59,6 +61,7 @@ class StateStore:
             raw.get("day", ""),
             raw.get("day_start_equity", 0.0),
             raw.get("consecutive_errors", 0),
+            raw.get("last_summary_day", ""),
             slots,
         )
 
@@ -72,3 +75,10 @@ class StateStore:
         self.dir.mkdir(parents=True, exist_ok=True)
         with self.trades_path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(trade) + "\n")
+
+    def save_status(self, status: dict) -> None:
+        """Foto del estado para el dashboard (solo lectura). Escritura atómica."""
+        self.dir.mkdir(parents=True, exist_ok=True)
+        tmp = self.status_path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(status, indent=2), encoding="utf-8")
+        tmp.replace(self.status_path)
