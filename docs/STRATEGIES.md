@@ -3,6 +3,10 @@
 Estado: todas están en etapa **backtest**. Ninguna opera en demo ni live hasta cumplir los
 criterios de la sección 4.
 
+Actualización: en 5m/15m/1h ninguna pasó. La investigación en **4h con gestión de riesgo**
+(`docs/RESEARCH_1H4H.md`, resultados en `docs/RESULTS_1H4H.md`) aprobó el walk-forward para
+`atr_breakout` y `sma_cross`; falta la confirmación única en el holdout antes de pasar a demo.
+
 ## 1. Estrategias actuales
 
 | Nombre | Rol | Idea | Fuente |
