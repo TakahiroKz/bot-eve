@@ -1,0 +1,13 @@
+# Configuración por defecto. Se puede sobrescribir con otro YAML (--config).
+data:
+  dir: data_store            # raíz del almacenamiento (ignorada por git)
+  symbols: [BTCUSDT, ETHUSDT, BNBUSDT]
+  start: "2020-01"           # primer mes a descargar (YYYY-MM)
+  base_interval: 1m
+  resample: [5m, 15m, 1h, 4h]
+  download_workers: 4
+  base_url: https://data.binance.vision
+
+logging:
+  level: INFO
+  file: logs/bot_eve.log

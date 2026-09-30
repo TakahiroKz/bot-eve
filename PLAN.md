@@ -1,6 +1,6 @@
 # PLAN: Bot de trading automático (Binance spot)
 
-Estado: **planificación**. Aún no hay código del bot.
+Estado: **Fase 1 (datos) implementada**. Ver README.md para uso. Las fases 2 en adelante están por hacer.
 
 ## 1. Decisiones tomadas
 
@@ -34,7 +34,7 @@ bot-eve/
 ├─ pyproject.toml
 ├─ config/
 │  └─ default.yaml          # pares, timeframes, comisiones, riesgo
-├─ src/botEve/
+├─ src/bot_eve/
 │  ├─ data/                 # descarga, almacenamiento, remuestreo, validación
 │  ├─ strategies/           # interfaz común + estrategias
 │  ├─ backtest/             # simulador, métricas, informes
@@ -112,7 +112,7 @@ Entregables:
 Criterios de aceptación:
 - Datos de BTC/ETH/BNB cargados sin huecos sin explicar (los huecos se reportan y documentan).
 - Tests unitarios de remuestreo y validación con datos sintéticos.
-- Un comando `python -m botEve.data sync` deja el dataset actualizado.
+- Un comando `python -m bot_eve.data sync` deja el dataset actualizado.
 
 ### Fase 2: Motor de backtest
 
