@@ -83,6 +83,15 @@ Cada conexión usa el mismo código con credenciales y servidor distintos según
 - Tener un símbolo de cripto disponible en el Market Watch (por ejemplo BTCUSD).
 - Los tests del conector usan un mock de `MetaTrader5` para poder correr sin la terminal.
 
+### Hallazgo: la demo de Libertex en MT5 no muestra cripto
+Al revisar el Market Watch de la cuenta demo solo aparecen forex, metales e índices (pendiente
+de confirmar con `Ctrl+U` > buscar "BTC"/"ETH"/"Crypto"). Consecuencias:
+- Las estrategias validadas en BTC/ETH/BNB **no se transfieren** a esos mercados.
+- MT5/Libertex pasa a ser una línea **independiente**: exigiría descargar su historial
+  (`copy_rates_range`), modelar spread y swap, y repetir backtest, walk-forward, criterios y
+  holdout antes de operar, empezando en su cuenta demo.
+- Binance sigue siendo el camino principal para cripto.
+
 ### Verificaciones pendientes sobre Libertex
 No he podido comprobar esto, así que debe confirmarse en la cuenta demo y en la documentación del broker antes de programar:
 - Que ofrezca MT5 y permita trading algorítmico (Expert Advisors / API de Python) en la cuenta demo **y** en la live.
