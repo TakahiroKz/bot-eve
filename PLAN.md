@@ -1,6 +1,6 @@
 # PLAN: Bot de trading automático (Binance spot)
 
-Estado: **Fases 1-2 implementadas, Fase 3 evaluada (ninguna estrategia aprobada, ver docs/STRATEGIES.md), Fase 4 implementada y pendiente de probar con claves reales del testnet.** Ver README.md para uso.
+Estado: **Fases 1-2 implementadas, Fase 3 evaluada (ninguna estrategia aprobada, ver docs/STRATEGIES.md), Fase 4 implementada y pendiente de probar con claves reales del testnet.** Dashboard local y alertas por Telegram implementados (fase 6). Ver README.md para uso.
 
 ## 1. Decisiones tomadas
 

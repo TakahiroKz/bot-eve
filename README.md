@@ -112,6 +112,27 @@ python -m bot_eve.engine --config config/mt5.yaml run
 Si la cuenta conectada es real, el modo demo se rechaza. Con poco capital el lote mínimo impide
 operar (BTCUSD necesita ~4.000–5.000 USD). Estado separado en `state/mt5/`.
 
+## Alertas por Telegram y dashboard (Fase 6)
+
+**Alertas (opcional).** Avisan de compras, cierres, stops ejecutados, errores seguidos, límite diario,
+kill switch, posiciones sin stop y un resumen diario.
+1. En Telegram, habla con **@BotFather**, crea un bot y copia el *token*.
+2. Escríbele «hola» a tu bot y ejecuta `python -m bot_eve.notify chat-id` (con `TELEGRAM_BOT_TOKEN` ya en `.env`).
+3. Pon `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` en `.env` y `notify.telegram.enabled: true` en la configuración.
+4. `python -m bot_eve.notify test` envía un mensaje de prueba. Reinicia los bots para activarlo.
+
+El token nunca se escribe en los logs. Si Telegram falla, el bot sigue operando con normalidad.
+
+**Dashboard local** (solo lectura, `http://127.0.0.1:8765`):
+```powershell
+python -m bot_eve.dashboard
+```
+Muestra, por bot: capital, P&L del día, posiciones con stop, curva de P&L realizado, últimas operaciones,
+estado en línea/sin señal y alertas (KILL activo, posición sin stop, errores seguidos). No tiene claves del
+exchange: lee `status.json` y `trades.jsonl` que escribe cada bot. Solo escucha en localhost y rechaza
+cabeceras `Host` ajenas. El botón de **parada de emergencia** requiere `DASHBOARD_TOKEN` en `.env`
+(una clave larga y propia); sin ella, el panel es solo de lectura.
+
 ## Desarrollo
 
 ```bash
