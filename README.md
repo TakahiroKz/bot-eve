@@ -2,7 +2,7 @@
 
 Bot de trading automático (Binance spot y MetaTrader 5). Ver [PLAN.md](PLAN.md) para el plan completo.
 
-Estado: **Fases 1 (datos) y 2 (backtest) completadas; Fase 3 (estrategias) en curso**. Aún no hay ejecución.
+Estado: **Fases 1 (datos) y 2 (backtest) completadas; Fase 3 (estrategias) evaluada (ninguna aprobada); Fase 4 (demo en Binance Testnet) implementada y pendiente de probar con tus claves.**
 
 ## Instalación
 
@@ -67,6 +67,27 @@ python -m bot_eve.backtest compare --intervals 5m 15m 1h          # walk-forward
 Hay 5 estrategias (1 línea base, 2 núcleo y 2 candidatas tomadas de tecnicasdetrading.com).
 Añadir una es crear un archivo con `@register`; quitarla, `enabled: false` o borrar el archivo.
 Criterios de aprobación, revisión de la página y cómo añadir/quitar: [docs/STRATEGIES.md](docs/STRATEGIES.md).
+
+## Demo en Binance Testnet (Fase 4)
+
+Necesita claves del testnet en `.env` (ver `.env.example`). Comandos:
+
+```bash
+python -m bot_eve.engine check                        # verifica claves, saldo, reglas y datos; NO opera
+python -m bot_eve.engine check --roundtrip BTCUSDT    # compra/stop/cancela/vende el mínimo en el testnet
+python -m bot_eve.engine run                          # arranca el bot (Ctrl+C lo detiene; los stops quedan en el exchange)
+python -m bot_eve.engine status                       # posiciones y operaciones
+python -m bot_eve.engine kill                         # cierra todo y detiene el bot
+```
+
+Cómo opera:
+- Señales con velas del **mercado real** (API pública); las órdenes van al **testnet**.
+- La señal sale de la vela cerrada y se ejecuta de inmediato, como en el backtest.
+- **Toda posición lleva un stop en el exchange** (STOP_LOSS_LIMIT). Si no se puede colocar, se cierra al instante.
+- Tamaño por riesgo (1% del capital hasta el stop), una posición por par, límite de pérdida diaria (3%), kill switch por archivo o por errores seguidos, y datos obsoletos no abren posiciones.
+- El estado se guarda en `state/` para reiniciar sin duplicar órdenes.
+- Solo corren las estrategias con `enabled: true`, `stage: demo` (o `live`) y `capital_fraction > 0`. **Hoy todas están en `backtest`**: ninguna superó los criterios de `docs/STRATEGIES.md`. Para probar la conexión, `check --roundtrip` no necesita ninguna estrategia.
+- El modo `live` (dinero real) exige `execution.i_understand_real_money: true` **y** `--yes-real-money`.
 
 ## Desarrollo
 

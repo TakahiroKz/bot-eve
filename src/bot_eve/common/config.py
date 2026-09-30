@@ -43,6 +43,40 @@ class BacktestConfig(BaseModel):
 STAGES = ("backtest", "demo", "live")
 
 
+class ExecutionConfig(BaseModel):
+    """Ejecución en vivo. `mode` decide qué estrategias pueden operar (ver StrategyConfig)."""
+
+    broker: Literal["binance"] = "binance"
+    mode: Literal["demo", "live"] = "demo"  # demo = Binance Testnet, live = dinero real
+    quote_asset: str = "USDT"
+    # Las señales se calculan con velas del mercado real (API pública, sin claves) aunque
+    # las órdenes vayan al testnet, cuyos precios no son fiables.
+    data_from_production: bool = True
+    state_dir: Path = Path("state")
+    candles_lookback: int = 600  # velas que se piden para calcular indicadores
+    poll_seconds: int = 20  # cada cuánto se revisa si cerró una vela nueva
+    candle_delay_seconds: int = 3  # espera tras el cierre antes de leer la vela
+    # Protección contra activar dinero real por accidente: debe ponerse en true a mano.
+    i_understand_real_money: bool = False
+
+
+class RiskConfig(BaseModel):
+    risk_per_trade: float = Field(
+        0.01, gt=0, le=0.1
+    )  # fracción del capital en riesgo por operación
+    default_stop_pct: float = Field(
+        0.03, gt=0, lt=0.5
+    )  # stop de emergencia si la estrategia no da uno
+    stop_limit_buffer: float = Field(
+        0.003, ge=0, lt=0.05
+    )  # el límite del stop queda este % bajo el stop
+    max_daily_loss: float = Field(0.03, gt=0, le=1)  # pérdida diaria máxima (fracción del capital)
+    max_consecutive_errors: int = Field(5, ge=1)
+    max_data_age_candles: int = Field(
+        3, ge=1
+    )  # datos más viejos que N velas se consideran obsoletos
+
+
 class StrategyConfig(BaseModel):
     """Configuración de una estrategia. El nombre es la clave en `strategies:`."""
 
@@ -67,6 +101,8 @@ class Config(BaseModel):
     data: DataConfig = Field(default_factory=DataConfig)
     backtest: BacktestConfig = Field(default_factory=BacktestConfig)
     strategies: dict[str, StrategyConfig] = Field(default_factory=dict)
+    execution: ExecutionConfig = Field(default_factory=ExecutionConfig)
+    risk: RiskConfig = Field(default_factory=RiskConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
     @model_validator(mode="after")

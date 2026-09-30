@@ -44,6 +44,25 @@ strategies:
     stage: backtest
     intervals: [15m, 1h]
 
+execution:
+  broker: binance
+  mode: demo                 # demo = Binance Testnet. 'live' exige i_understand_real_money
+  quote_asset: USDT
+  data_from_production: true # señales con velas del mercado real (API pública)
+  state_dir: state
+  candles_lookback: 600
+  poll_seconds: 20
+  candle_delay_seconds: 3
+  i_understand_real_money: false
+
+risk:
+  risk_per_trade: 0.01       # 1% del capital en riesgo hasta el stop
+  default_stop_pct: 0.03     # stop de emergencia si la estrategia no define uno
+  stop_limit_buffer: 0.003
+  max_daily_loss: 0.03       # 3% diario: al alcanzarlo no se abren más operaciones
+  max_consecutive_errors: 5
+  max_data_age_candles: 3
+
 logging:
   level: INFO
   file: logs/bot_eve.log
