@@ -28,6 +28,7 @@ def rsi(close: pd.Series, n: int = 14) -> pd.Series:
     avg_down = _wilder(-delta.clip(upper=0), n)
     value = 100 - 100 / (1 + avg_up / avg_down)
     value = value.where(avg_down != 0, 100.0)  # sin pérdidas -> 100
+    value = value.where((avg_down != 0) | (avg_up != 0), 50.0)  # precio constante -> neutro
     return value.where(avg_up.notna() & avg_down.notna())
 
 

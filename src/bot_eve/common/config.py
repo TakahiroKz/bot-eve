@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 DEFAULT_CONFIG = Path("config/default.yaml")
 
@@ -39,6 +40,24 @@ class BacktestConfig(BaseModel):
     reports_dir: Path = Path("reports")
 
 
+STAGES = ("backtest", "demo", "live")
+
+
+class StrategyConfig(BaseModel):
+    """Configuración de una estrategia. El nombre es la clave en `strategies:`."""
+
+    enabled: bool = False  # si participa en el bot (demo/live); en backtest siempre se puede usar
+    stage: Literal["backtest", "demo", "live"] = "backtest"  # etapa máxima autorizada
+    capital_fraction: float = Field(0.0, ge=0, le=1)  # parte del capital asignada en vivo
+    symbols: list[str] | None = None  # None = todos los de `data.symbols`
+    intervals: list[str] = Field(default_factory=lambda: ["15m"])
+    params: dict = Field(default_factory=dict)
+
+    def allowed_in(self, mode: str) -> bool:
+        """¿Puede operar en `mode`? Requiere estar activada y haber alcanzado esa etapa."""
+        return self.enabled and STAGES.index(self.stage) >= STAGES.index(mode)
+
+
 class LoggingConfig(BaseModel):
     level: str = "INFO"
     file: Path | None = Path("logs/bot_eve.log")
@@ -47,7 +66,20 @@ class LoggingConfig(BaseModel):
 class Config(BaseModel):
     data: DataConfig = Field(default_factory=DataConfig)
     backtest: BacktestConfig = Field(default_factory=BacktestConfig)
+    strategies: dict[str, StrategyConfig] = Field(default_factory=dict)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
+
+    @model_validator(mode="after")
+    def _check_capital(self) -> Config:
+        for mode in ("demo", "live"):
+            total = sum(c.capital_fraction for c in self.strategies.values() if c.allowed_in(mode))
+            if total > 1 + 1e-9:
+                raise ValueError(f"capital_fraction suma {total:.2f} > 1 para el modo {mode}")
+        return self
+
+    def active_strategies(self, mode: str) -> dict[str, StrategyConfig]:
+        """Estrategias que pueden operar en `mode` ('demo' o 'live')."""
+        return {n: c for n, c in self.strategies.items() if c.allowed_in(mode)}
 
 
 def load_config(path: Path | str | None = None) -> Config:

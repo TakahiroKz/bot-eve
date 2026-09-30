@@ -59,3 +59,26 @@ def klines_zip(df: pd.DataFrame, unit: str = "ms", header: bool = False) -> byte
 @pytest.fixture
 def candles() -> pd.DataFrame:
     return make_candles("2024-01-01", 600)
+
+
+def volatile_candles(n: int = 2500, seed: int = 7, freq: str = "15min") -> pd.DataFrame:
+    """Serie con tendencias, rangos y volatilidad variable, para probar estrategias."""
+    rng = np.random.default_rng(seed)
+    vol = 0.002 * (1 + np.sin(np.arange(n) / 150) ** 2)
+    drift = 0.0004 * np.sin(np.arange(n) / 400)
+    close = 100 * np.exp((rng.normal(0, 1, n) * vol + drift).cumsum())
+    open_ = np.concatenate([[100.0], close[:-1]])
+    spread = np.abs(rng.normal(0, 1, n)) * vol * close
+    idx = pd.date_range("2024-01-01", periods=n, freq=freq, tz="UTC", name="open_time")
+    return pd.DataFrame(
+        {
+            "open": open_,
+            "high": np.maximum(open_, close) + spread,
+            "low": np.minimum(open_, close) - spread,
+            "close": close,
+            "volume": rng.uniform(1, 10, n),
+            "quote_volume": rng.uniform(100, 1000, n),
+            "trades": rng.integers(1, 100, n),
+        },
+        index=idx,
+    )

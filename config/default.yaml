@@ -16,6 +16,34 @@ backtest:
   holdout_start: "2025-07-01"  # desde aquí los datos se reservan (evaluación final única)
   reports_dir: reports
 
+# Estrategias. `enabled` decide si entran al bot en vivo; `stage` es la etapa máxima
+# autorizada (backtest < demo < live). Todas empiezan en backtest: ninguna pasa a demo
+# hasta superar la validación walk-forward (ver docs/STRATEGIES.md).
+strategies:
+  sma_cross:            # línea base: sirve de control, no se despliega
+    enabled: false
+    stage: backtest
+    intervals: [15m, 1h]
+    params: {fast: 10, slow: 30}
+  rsi_trend:            # núcleo
+    enabled: true
+    stage: backtest
+    capital_fraction: 0.0
+    intervals: [15m, 1h]
+  atr_breakout:         # núcleo
+    enabled: true
+    stage: backtest
+    capital_fraction: 0.0
+    intervals: [15m, 1h]
+  bollinger_reversion:  # candidata de tecnicasdetrading.com: solo backtest por ahora
+    enabled: false
+    stage: backtest
+    intervals: [5m, 15m]
+  ema_adx:              # candidata de tecnicasdetrading.com: solo backtest por ahora
+    enabled: false
+    stage: backtest
+    intervals: [15m, 1h]
+
 logging:
   level: INFO
   file: logs/bot_eve.log

@@ -2,7 +2,7 @@
 
 Bot de trading automático (Binance spot y MetaTrader 5). Ver [PLAN.md](PLAN.md) para el plan completo.
 
-Estado: **Fases 1 (datos) y 2 (motor de backtest) completadas**. Aún no hay estrategias reales ni ejecución.
+Estado: **Fases 1 (datos) y 2 (backtest) completadas; Fase 3 (estrategias) en curso**. Aún no hay ejecución.
 
 ## Instalación
 
@@ -56,6 +56,17 @@ Sin sobreajustar:
 - `walkforward` optimiza en una ventana, evalúa en la siguiente y encadena solo los tramos de prueba.
 - Los datos desde `backtest.holdout_start` (2025-07-01) están **reservados**: los comandos normales no los ven. `--final` los evalúa, y debe usarse **una sola vez**, con la estrategia ya decidida.
 - Para crear una estrategia: heredar de `Strategy` (`strategies/base.py`), registrarla en `strategies/__init__.py` y validar con `check_no_lookahead`.
+
+## Estrategias (Fase 3)
+
+```bash
+python -m bot_eve.backtest list                                   # estrategias y su estado
+python -m bot_eve.backtest compare --intervals 5m 15m 1h          # walk-forward de todas
+```
+
+Hay 5 estrategias (1 línea base, 2 núcleo y 2 candidatas tomadas de tecnicasdetrading.com).
+Añadir una es crear un archivo con `@register`; quitarla, `enabled: false` o borrar el archivo.
+Criterios de aprobación, revisión de la página y cómo añadir/quitar: [docs/STRATEGIES.md](docs/STRATEGIES.md).
 
 ## Desarrollo
 

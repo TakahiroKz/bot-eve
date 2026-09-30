@@ -33,3 +33,40 @@ def test_explicit_missing_config_fails(tmp_path):
 def test_repo_default_config_is_valid(monkeypatch):
     monkeypatch.chdir(__file__.rsplit("/tests", 1)[0])
     assert load_config().data.start == "2020-01"
+
+
+def test_strategy_stage_rules():
+    from bot_eve.common.config import StrategyConfig
+
+    off = StrategyConfig(enabled=False, stage="live")
+    bt_only = StrategyConfig(enabled=True, stage="backtest")
+    demo = StrategyConfig(enabled=True, stage="demo")
+    live = StrategyConfig(enabled=True, stage="live")
+    assert not off.allowed_in("demo")
+    assert not bt_only.allowed_in("demo") and not bt_only.allowed_in("live")
+    assert demo.allowed_in("demo") and not demo.allowed_in("live")
+    assert live.allowed_in("demo") and live.allowed_in("live")
+
+
+def test_capital_fractions_cannot_exceed_one(tmp_path):
+    f = tmp_path / "c.yaml"
+    f.write_text(
+        "strategies:\n"
+        "  a: {enabled: true, stage: live, capital_fraction: 0.7}\n"
+        "  b: {enabled: true, stage: live, capital_fraction: 0.5}\n"
+    )
+    with pytest.raises(ValueError, match="capital_fraction"):
+        load_config(f)
+    f.write_text(
+        "strategies:\n"
+        "  a: {enabled: true, stage: live, capital_fraction: 0.7}\n"
+        "  b: {enabled: false, stage: live, capital_fraction: 0.5}\n"
+    )
+    assert list(load_config(f).active_strategies("live")) == ["a"]
+
+
+def test_repo_config_keeps_everything_in_backtest_stage(monkeypatch):
+    monkeypatch.chdir(__file__.rsplit("/tests", 1)[0])
+    cfg = load_config()
+    assert {"rsi_trend", "atr_breakout", "bollinger_reversion", "ema_adx"} <= set(cfg.strategies)
+    assert cfg.active_strategies("demo") == {}  # nada pasa a demo sin validación

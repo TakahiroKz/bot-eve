@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from bot_eve.backtest.compare import compare, summarize
 from bot_eve.backtest.costs import Costs, rules_for
 from bot_eve.backtest.engine import run_backtest
 from bot_eve.backtest.report import write_report
@@ -32,6 +33,8 @@ from bot_eve.strategies import REGISTRY, build_strategy
 def _scalar(text: str):
     if text.lower() in ("none", "null"):
         return None
+    if text.lower() in ("true", "false"):
+        return text.lower() == "true"
     for cast in (int, float):
         try:
             return cast(text)
@@ -76,6 +79,13 @@ def _parser() -> argparse.ArgumentParser:
         s.add_argument("--end")
         s.add_argument("--final", action="store_true", help="evalúa solo el holdout reservado")
         s.add_argument("--report", type=Path, help="ruta del informe HTML")
+    sub.add_parser("list", help="estrategias disponibles y su estado en la configuración")
+    cmp_ = sub.add_parser("compare", help="walk-forward de varias estrategias/pares/intervalos")
+    cmp_.add_argument("--strategies", nargs="+", choices=sorted(REGISTRY))
+    cmp_.add_argument("--symbols", nargs="+")
+    cmp_.add_argument("--intervals", nargs="+", default=["15m", "1h"])
+    cmp_.add_argument("--workers", type=int)
+    cmp_.add_argument("--out", type=Path, default=None, help="CSV de salida")
     sub.choices["run"].add_argument("--params", nargs="*", help="p. ej. fast=10 slow=30")
     wf = sub.choices["walkforward"]
     wf.add_argument("--grid", nargs="+", required=True, help="p. ej. fast=5,10 slow=30,50")
@@ -102,6 +112,30 @@ def main(argv: list[str] | None = None) -> int:
     cfg = load_config(args.config)
     setup_logging(cfg.logging.level, None)
     bt = cfg.backtest
+
+    if args.command == "list":
+        for name, cls in sorted(REGISTRY.items()):
+            sc = cfg.strategies.get(name)
+            state = "sin configurar" if sc is None else f"enabled={sc.enabled} stage={sc.stage}"
+            print(f"{name:22} {state:32} {cls.description}")
+        return 0
+    if args.command == "compare":
+        out = args.out or bt.reports_dir / "compare.csv"
+        table = compare(
+            cfg,
+            args.strategies or sorted(REGISTRY),
+            args.symbols or cfg.data.symbols,
+            args.intervals,
+            args.workers,
+            out,
+        )
+        with pd.option_context("display.width", 200, "display.float_format", "{:.3f}".format):
+            print(table.drop(columns=["trials"]).to_string(index=False))
+            print("\nPROMEDIO entre pares:")
+            print(summarize(table).to_string())
+        print(f"\nCSV: {out}")
+        return 0
+
     df = _load(cfg, args.symbol, args.interval, args.final)
     costs = Costs(bt.fee_rate, bt.slippage)
     rules = rules_for(args.symbol)
