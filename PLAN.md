@@ -12,8 +12,9 @@ Estado: **planificación**. Aún no hay código del bot.
 | Autonomía final | Totalmente automático, con controles de riesgo duros |
 | Stack | Python 3.11+ con dashboard web (FastAPI) |
 | Ejecución | PC local (VPS como opción futura) |
-| Conexión demo | **Binance Testnet** (spot), actualmente activa |
-| Conexión live | **MetaTrader 5** con un broker (ver sección 4, supuestos por confirmar) |
+| Conexión 1: Binance (API) | Demo en **Binance Testnet** (activa hoy) y live con API real (spot) |
+| Conexión 2: MetaTrader 5 | Broker **Libertex**, con cuenta demo y cuenta live (dinero real) |
+| Sistema operativo | Windows (requerido por la librería `MetaTrader5`) |
 | Capital real | 3.54 USDT (solo para probar ejecución, no como objetivo de rentabilidad) |
 | Pares candidatos | BTCUSDT, ETHUSDT, BNBUSDT |
 
@@ -40,8 +41,8 @@ bot-eve/
 │  ├─ risk/                 # tamaño de posición, límites, kill-switch
 │  ├─ execution/
 │  │  ├─ base.py            # interfaz Broker común
-│  │  ├─ binance_demo.py    # ccxt sobre Binance Testnet (demo)
-│  │  ├─ mt5_live.py        # MetaTrader5 (live)
+│  │  ├─ binance.py         # ccxt: Binance Testnet (demo) o API real (live)
+│  │  ├─ mt5.py             # MetaTrader5: cuenta demo o live (Libertex)
 │  │  └─ simulated.py       # broker simulado del backtest
 │  ├─ engine/               # bucle en vivo
 │  ├─ dashboard/            # FastAPI + frontend
@@ -51,31 +52,49 @@ bot-eve/
 
 Principio clave: **la misma estrategia corre igual en backtest, paper y real**. Solo cambia el "broker" (simulado, testnet o real).
 
-## 4. Conexiones (brokers): demo en Binance, live en MetaTrader
+## 4. Conexiones (brokers)
 
-El motor y las estrategias solo conocen la interfaz `Broker`. Hay tres implementaciones intercambiables por configuración:
+El motor y las estrategias solo conocen la interfaz `Broker`. Hay dos conexiones reales, cada una con su entorno demo y live, más el simulador del backtest:
 
-| Modo | Implementación | Uso |
-|---|---|---|
-| `backtest` | `simulated.py` | Pruebas con datos históricos |
-| `demo` | `binance_demo.py` (ccxt, Binance Testnet) | Paper trading; **activo hoy** |
-| `live` | `mt5_live.py` (librería `MetaTrader5`) | Dinero real vía broker MT5 |
+| Modo | Implementación | Entorno | Uso |
+|---|---|---|---|
+| `backtest` | `simulated.py` | Datos históricos | Investigación y validación |
+| `binance_demo` | `binance.py` (ccxt) | Binance Testnet | Paper trading; **activo hoy** |
+| `binance_live` | `binance.py` (ccxt) | Binance API real (spot) | Dinero real; solo si se cumple el min notional |
+| `mt5_demo` | `mt5.py` (`MetaTrader5`) | Cuenta demo de Libertex | Validación final antes de live |
+| `mt5_live` | `mt5.py` (`MetaTrader5`) | Cuenta real de Libertex | Dinero real (CFDs) |
 
-Interfaz mínima de `Broker`: `get_candles`, `get_balance`, `get_position`, `place_order`, `cancel_order`, `get_symbol_rules` (tamaño mínimo, paso, min notional), `close_all`.
+Cada conexión usa el mismo código con credenciales y servidor distintos según el entorno. Interfaz mínima de `Broker`: `get_candles`, `get_balance`, `get_position`, `place_order`, `cancel_order`, `get_symbol_rules` (tamaño mínimo, paso, min notional o lote), `close_all`.
 
-### Supuestos por confirmar
-- **MetaTrader no conecta con Binance.** El live en MT5 implica un broker MT5 distinto. Para operar cripto ahí, ese broker debe ofrecer **CFDs de cripto** (BTCUSD, ETHUSD, etc.), que **no son spot**: hay spread, apalancamiento y swaps.
-- Si el objetivo era tener el live en el propio Binance, MT5 no es el camino; habría que usar la API de Binance con claves reales.
-- La librería `MetaTrader5` de Python **solo funciona en Windows** y requiere la terminal MT5 abierta y con sesión iniciada. La ejecución en PC debe ser Windows.
-- Confirmar que el broker MT5 elegido sea legal y esté disponible en Colombia.
-
-### Consecuencias de diseño
-- **Modelo de costos por broker:** en Binance, comisión porcentual por lado; en MT5, spread + swap + posible comisión por lote. El backtest debe poder usar cualquiera de los dos según el destino.
-- **Datos del broker live:** los precios de un CFD difieren de los de Binance. Antes de operar en live hay que descargar el histórico del mismo símbolo desde MT5 (`copy_rates_range`) y **re-validar la estrategia con esos datos**, no solo con los de Binance.
+### Diferencias importantes entre las dos conexiones
+- **Binance spot:** compras y vendes el activo real; comisión porcentual por lado; sin apalancamiento.
+- **MT5 con Libertex:** operas **CFDs**, no el activo real. Hay spread, swaps (costo por mantener posiciones abiertas), apalancamiento y horarios propios de cada símbolo.
+- **Modelo de costos por conexión:** el backtest debe poder usar el de Binance (comisión) o el de MT5 (spread + swap + posible comisión por lote).
+- **Datos por conexión:** los precios de un CFD difieren de los de Binance. Antes de operar en MT5 hay que descargar el histórico del mismo símbolo desde MT5 (`copy_rates_range`) y **re-validar la estrategia con esos datos**.
 - **Reglas del símbolo:** lote mínimo, paso de lote, tamaño de contrato y horarios cambian por broker; se leen de `get_symbol_rules`.
-- **Riesgo:** los CFDs permiten apalancamiento. El módulo de riesgo debe limitar el apalancamiento efectivo (por ejemplo ≤ 1x al inicio) para comportarse como spot.
-- **Demo y live no son idénticos.** Un buen resultado en Binance Testnet no garantiza el mismo resultado en MT5. Por eso, antes de dinero real, conviene una fase adicional en una **cuenta demo del propio broker MT5**.
-- **Selector de modo explícito:** `mode: backtest | demo | live`. El modo `live` exige una bandera de confirmación adicional en la configuración y muestra una advertencia visible en el dashboard.
+- **Riesgo:** con CFDs, el módulo de riesgo limita el apalancamiento efectivo (por ejemplo ≤ 1x al inicio) para comportarse como spot.
+- **Demo no es igual a live.** Los precios de un demo pueden ser más limpios que los reales, con menos slippage y requotes. Un buen resultado en demo no garantiza el mismo resultado en live.
+- **Selector de modo explícito:** cualquier modo `*_live` exige una bandera de confirmación adicional en la configuración y una advertencia visible en el dashboard.
+
+### Requisitos técnicos de MT5 (Windows)
+- Terminal MT5 instalada, abierta y con sesión iniciada en la cuenta correcta.
+- Habilitar "Algo Trading" (trading algorítmico) en la terminal.
+- Instalar el paquete Python `MetaTrader5`.
+- Tener un símbolo de cripto disponible en el Market Watch (por ejemplo BTCUSD).
+- Los tests del conector usan un mock de `MetaTrader5` para poder correr sin la terminal.
+
+### Verificaciones pendientes sobre Libertex
+No he podido comprobar esto, así que debe confirmarse en la cuenta demo y en la documentación del broker antes de programar:
+- Que ofrezca MT5 y permita trading algorítmico (Expert Advisors / API de Python) en la cuenta demo **y** en la live.
+- Qué símbolos de cripto ofrece en MT5, con su spread, swap, lote mínimo y horarios.
+- Tipo de cuenta (netting o hedging) y si restringe el scalping o tiene un tiempo mínimo de permanencia.
+- Depósito mínimo y condiciones para cuentas live desde Colombia.
+
+### Broker adicional solo para demo (desarrollo)
+Recomendación para desarrollar sin depender de Libertex:
+1. **MetaQuotes-Demo (servidor demo integrado en MT5).** Sin registro ni verificación, incluye símbolos de cripto y sirve para desarrollar el conector y los tests de integración.
+2. **Demo de un broker ECN con MT5 y cripto** (por ejemplo IC Markets, Pepperstone o Exness) para comparar spreads y comportamiento con otro broker. Comprobar antes que su demo esté disponible desde Colombia.
+3. **La demo de Libertex** queda como validación final, porque es la que replica las condiciones del live.
 
 ## 5. Fases
 
@@ -121,8 +140,8 @@ Criterios de aceptación:
 - Opcional: modelo ML (por ejemplo LightGBM) como filtro de señales.
 - Decisión basada en datos: continuar con 5–15m o pasar a 1h/4h.
 
-### Fase 4: Paper trading en demo (Binance Testnet)
-- Interfaz `Broker` e implementación `binance_demo.py` con ccxt sobre Binance Testnet (la conexión demo ya está activa).
+### Fase 4: Paper trading en Binance Testnet (`binance_demo`)
+- Interfaz `Broker` e implementación `binance.py` con ccxt sobre Binance Testnet (la conexión demo ya está activa).
 - Bucle en vivo (`engine/`) con estado persistido en disco para reiniciar sin perder posiciones.
 - Mínimo **4–8 semanas** de operación simulada.
 - Comparar resultados en vivo contra el backtest del mismo periodo.
@@ -141,15 +160,16 @@ Criterios de aceptación:
 - Botón de pausa y parada de emergencia.
 - Alertas por Telegram.
 
-### Fase 6b: Conector MetaTrader 5 (live)
-- Implementar `mt5_live.py` sobre la librería `MetaTrader5` (Windows).
-- Descargar histórico del símbolo del broker y re-validar la estrategia con esos datos y su modelo de costos (spread + swap).
-- **Cuenta demo del broker MT5** durante al menos unas semanas antes de usar dinero real.
+### Fase 6b: Conector MetaTrader 5 (`mt5_demo` y `mt5_live`)
+- Implementar `mt5.py` sobre la librería `MetaTrader5` (Windows), con el mismo código para demo y live.
+- Empezar con MetaQuotes-Demo para el desarrollo, luego la **cuenta demo de Libertex**.
+- Descargar el histórico del símbolo del broker y re-validar la estrategia con esos datos y su modelo de costos (spread + swap).
+- Operar en la demo de Libertex durante al menos unas semanas antes de usar dinero real.
 - Tests del conector con un `MetaTrader5` simulado (mock), para que la suite corra en cualquier sistema.
 
 ### Fase 7: Producción gradual
-- Modo `live` vía MT5 con capital mínimo real, respetando el lote mínimo y el depósito requerido por el broker.
-- En Binance, solo si se cumple el min notional.
+- `mt5_live` (Libertex) con capital mínimo real, respetando el lote mínimo y el depósito requerido por el broker.
+- `binance_live` solo si se cumple el min notional.
 - Ejecución en PC con reconexión automática; evaluar VPS.
 - Escalar solo si el comportamiento coincide con el paper trading.
 - Versión 2: estrategias intradía 1h/4h.
@@ -175,10 +195,10 @@ Python 3.11+, `ccxt`, `MetaTrader5` (Windows), `pandas`, `numpy`, `pyarrow` (Par
 | PC apagado o sin internet con posición abierta | Stops OCO en el exchange |
 | Cambios de API o límites de Binance | Capa de abstracción con ccxt, manejo de rate limits |
 | Bug que abre posiciones descontroladas | Kill-switch, límites duros, testnet primero |
-| MT5 en live opera CFDs, no spot (spread, apalancamiento, swaps) | Modelo de costos propio, límite de apalancamiento, demo del broker |
+| MT5 opera CFDs, no spot (spread, apalancamiento, swaps) | Modelo de costos propio, límite de apalancamiento, demo de Libertex |
 | Diferencia de precios entre Binance (entrenamiento) y el broker MT5 (live) | Re-validar con el histórico del propio broker |
-| `MetaTrader5` solo funciona en Windows | Ejecutar el bot en un PC Windows; mocks para tests |
-| Broker MT5 no disponible o no regulado en Colombia | Verificar antes de depositar |
+| `MetaTrader5` requiere terminal abierta en Windows | Bot en el PC Windows; reconexión automática; mocks para tests |
+| Libertex no permite trading algorítmico, restringe scalping o no opera desde Colombia | Verificar en la demo y en su documentación antes de depositar |
 
 ## 9. Próximo paso
 
