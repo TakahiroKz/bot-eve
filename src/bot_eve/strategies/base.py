@@ -11,6 +11,7 @@ Regla de oro: la señal en la fila `t` solo puede depender de datos hasta `t` in
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import ClassVar
 
 import numpy as np
 import pandas as pd
@@ -26,8 +27,12 @@ class Strategy(ABC):
     """Estrategia long-only para spot."""
 
     name: str = "strategy"
+    #: descripción corta (se muestra en `python -m bot_eve.backtest list`)
+    description: str = ""
     #: velas mínimas de historia que necesita antes de dar señales fiables
     warmup: int = 0
+    #: rejilla pequeña de parámetros para walk-forward (pocas combinaciones: menos sobreajuste)
+    default_grid: ClassVar[dict[str, list]] = {}
 
     @property
     def params(self) -> dict:
@@ -74,3 +79,32 @@ def check_no_lookahead(strategy: Strategy, df: pd.DataFrame, cuts: int = 8, seed
                 f"{strategy.name}: look-ahead detectado; la señal en {first} cambia "
                 f"según cuántas velas futuras se conozcan (corte en {k})"
             )
+
+
+def build_signals(
+    index: pd.Index,
+    buy: pd.Series,
+    sell: pd.Series,
+    stop_pct: pd.Series | float | None = None,
+    target_pct: pd.Series | float | None = None,
+) -> pd.DataFrame:
+    """Arma el DataFrame de señales a partir de máscaras booleanas.
+
+    Si en una misma vela coinciden compra y venta, se descarta la compra. Los stops y
+    objetivos solo se escriben en las filas de compra; los valores no finitos se ignoran.
+    """
+    buy = buy.fillna(False).astype(bool)
+    sell = sell.fillna(False).astype(bool)
+    buy = buy & ~sell
+    out = empty_signals(index)
+    signal = out["signal"].to_numpy().copy()
+    signal[sell.to_numpy()] = SELL
+    signal[buy.to_numpy()] = BUY
+    out["signal"] = signal
+    for column, value in (("stop_pct", stop_pct), ("target_pct", target_pct)):
+        if value is None:
+            continue
+        values = value if isinstance(value, pd.Series) else pd.Series(value, index=index)
+        values = values.where(np.isfinite(values) & (values > 0))
+        out[column] = values.where(buy)
+    return out

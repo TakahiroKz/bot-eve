@@ -1,18 +1,21 @@
-"""Registro de estrategias disponibles."""
+"""Estrategias disponibles.
+
+Cualquier módulo nuevo en este paquete que use `@register` se descubre solo: no hay que
+editar este archivo. Para quitar una estrategia basta con borrar su módulo (o ponerla en
+`enabled: false` en la configuración si solo debe dejar de operar).
+"""
 
 from __future__ import annotations
 
-from bot_eve.strategies.base import Strategy
-from bot_eve.strategies.sma_cross import SmaCross
+import importlib
+import pkgutil
 
-REGISTRY: dict[str, type[Strategy]] = {SmaCross.name: SmaCross}
+from bot_eve.strategies.registry import REGISTRY, build_strategy, register
 
+_SKIP = {"base", "registry", "indicators"}
 
-def build_strategy(name: str, **params) -> Strategy:
-    try:
-        cls = REGISTRY[name]
-    except KeyError:
-        raise ValueError(
-            f"Estrategia desconocida: {name!r}. Disponibles: {sorted(REGISTRY)}"
-        ) from None
-    return cls(**params)
+for _mod in pkgutil.iter_modules(__path__):
+    if _mod.name not in _SKIP and not _mod.name.startswith("_"):
+        importlib.import_module(f"{__name__}.{_mod.name}")
+
+__all__ = ["REGISTRY", "build_strategy", "register"]

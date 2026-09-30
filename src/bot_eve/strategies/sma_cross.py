@@ -5,10 +5,14 @@ from __future__ import annotations
 import pandas as pd
 
 from bot_eve.strategies.base import BUY, SELL, Strategy, empty_signals
+from bot_eve.strategies.registry import register
 
 
+@register
 class SmaCross(Strategy):
     name = "sma_cross"
+    description = "Línea base: cruce de dos medias móviles simples."
+    default_grid = {"fast": [5, 10, 20], "slow": [30, 50, 100]}
 
     def __init__(
         self,
