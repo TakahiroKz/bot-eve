@@ -237,3 +237,80 @@ Velas 1m/5m/15m + flujo comprador ─► Feature engine (multi-timeframe, solo v
 5. **Criterio fijado antes:** en validación purgada y una sola vez en un tramo sellado, la esperanza neta por operación
    debe ser > 0 con el extremo inferior del IC95% > 0 y ≥ 300 operaciones; y debe superar a «tomar todos» y al azar.
    Si no lo cumple, **se detiene aquí**: no se construye el supervisor Claude ni se arriesga dinero.
+
+
+---
+
+## 10. Propuesta «Propuesta_scapling.docx»: revisión (2026-09-30)
+
+El documento plantea tres estrategias de scalping **para Forex** y una arquitectura con clasificador de régimen
+(TREND / RANGE / EVENT / NO_TRADE), motor de costos en R y un protocolo de pruebas:
+- **A. Momentum con retroceso:** contexto M15 (EMA50 > EMA200, ADX > 20), entrada M5 (retroceso a la EMA20 y ruptura de la
+  vela previa), stop 1.2×ATR(M5), objetivo 1.8×ATR(M5).
+- **B. Reversión a la media con z-score:** M1/M5, solo en rango (ADX < 18), entrada en z = ±2, salida en z ≈ 0, stop 1×ATR.
+- **C. Reversión en los fixings** (Tokio, Fráncfort, Londres): confirmar la reversión *después* del fixing, salida por tiempo.
+- Un solo mecanismo activo a la vez, decidido por el régimen; IA solo para selección/configuración/análisis.
+
+### 10.1 Qué es muy valioso y se adopta
+1. **El motor de costos medido en R.** Es la forma correcta de juzgar un scalping (ver 10.2).
+2. **Un estado `NO_TRADE`** y un único mecanismo activo a la vez (coincide con nuestra regla de una posición por símbolo).
+3. **Protocolo de datos:** desarrollo → validación → fuera de muestra real (2026), con datos bid/ask y no solo el precio medio.
+4. **Monte Carlo sobre la secuencia de operaciones**, y medir expectancy neta, estabilidad del profit factor y trades/día.
+5. **Parámetros iniciales como hipótesis** (1.2/1.8 no se optimizan hasta que se vean fuera de muestra).
+6. La IA **no** decide «comprar EURUSD»: propone régimen/configuración; las reglas y el riesgo son deterministas.
+
+### 10.2 El punto decisivo: costo en R según el instrumento
+Con las reglas del propio documento (stop 1.2×ATR, objetivo 1.8×ATR, R:R 1.5), la probabilidad de tocar el objetivo
+**al azar es 40%**. Acierto necesario = (1 + costo_R) / 2.5:
+
+| Costo de ida y vuelta | Acierto necesario | Mejora necesaria sobre el azar |
+|---|---|---|
+| 0.05 R | 42.0% | +2 pts |
+| **0.12 R** (ejemplo del documento) | 44.8% | **+4.8 pts** |
+| 0.25 R | 50.0% | +10 pts |
+| 0.50 R | 60.0% | +20 pts |
+| 1.00 R | 80.0% | +40 pts |
+
+En nuestros datos de cripto (ATR(14) mediano, datos de desarrollo), el stop de 1.2×ATR es muy corto frente al costo:
+
+| Par / vela | Stop (1.2×ATR) | Costo en R (Binance spot) | Costo en R (CFD cripto MT5) | Mejora necesaria (Binance / MT5) |
+|---|---|---|---|---|
+| BTC 1m | 0.09% | 2.17 R | 1.68 R | imposible |
+| BTC 5m | 0.24% | 0.84 R | 0.65 R | +33 / +26 pts |
+| BTC 15m | 0.44% | 0.45 R | 0.35 R | +18 / +14 pts |
+| ETH 5m | 0.31% | 0.65 R | 0.50 R | +26 / +20 pts |
+| ETH 15m | 0.58% | 0.35 R | 0.27 R | +14 / +11 pts |
+
+**Conclusión:** el esquema del documento tiene sentido cuando el costo es ≈ 0.05–0.15 R, típico de **Forex mayor con spread
+bajo**; en cripto, con ~0.2% de costo, el costo es de 0.3 a más de 2 R y la ventaja exigida es irreal. No es una falla de la
+propuesta: está escrita para otro mercado.
+
+### 10.3 Lo que hay que corregir o cuidar
+1. **Fuentes.** El documento cita estudios (momentum intradía en FX, reversión con régimen de 2026, fixings 1999–2019,
+   Bank of Canada). **No pude verificarlos.** Son hipótesis: que un efecto exista en datos históricos no implica que siga
+   existiendo ni que supere costos. Hay que leer los originales.
+2. **Los fixings son una anomalía de FX**, con horario fijo (Tokio, Fráncfort, Londres). No existe en cripto. Además, el
+   servidor de MT5 va en UTC+2/+3 con cambio de horario: requiere manejar zonas horarias con cuidado.
+3. **El filtro de noticias** necesita un calendario económico (no tenemos). Empezar con ventanas de exclusión fijas alrededor
+   de eventos conocidos y medir cuánto cambia el resultado.
+4. **Las variantes SHORT** no funcionan en Binance spot (solo largos). Requieren CFD (MT5). Hoy **nuestro motor y el
+   `Mt5Broker` son solo largos**: hay que añadir ventas en corto a backtest, motor en vivo y conector.
+5. **El ejemplo del motor de costos (P = 56%, +1.5 R) es una suposición**, no un resultado: 56% exige +16 pts sobre el 40% del azar.
+6. **El clasificador de régimen añade parámetros** (ADX, pendiente, percentiles…): más riesgo de sobreajuste. Empezar simple.
+7. **Datos.** Las velas de MT5 traen el spread por barra (útil) pero la terminal limita las barras descargables
+   (en FX, 1m ≈ 2 meses con 100.000 barras; 5m ≈ 1,3 años; 15m ≈ 4 años). Se puede subir el límite en MT5.
+
+### 10.4 Decisión clave: dónde se probaría el scalping
+| Opción | Ventajas | Inconvenientes |
+|---|---|---|
+| **Cripto en Binance spot** | Real con 500 USD, simple | Costo 0.3–2+ R: inviable en 1m/5m; +14 a +18 pts incluso en 15m |
+| **Forex (y metales) en Libertex/MT5** | Costo potencialmente bajo (si el spread lo es), largos y cortos, apalancamiento | Hay que **medir** spread/comisión/swap reales; requiere cortos; datos limitados; apalancamiento alto = riesgo |
+
+### 10.5 Fase Q0-FX (sin dinero y sin API de Claude): medir antes de construir
+1. `python -m bot_eve.data mt5-info --symbols EURUSD GBPUSD USDJPY AUDUSD XAUUSD` → spread, comisión, swap, lote mínimo reales.
+2. Subir en MT5 «Máx. barras en el gráfico/en la historia» y `python -m bot_eve.data mt5-sync --symbols EURUSD GBPUSD USDJPY AUDUSD --intervals 5m 15m 1h`.
+3. Calcular el **costo en R** real por símbolo con el ATR y el spread medianos de esos datos.
+4. **Puerta 1 (fijada antes):** solo se sigue con los símbolos donde el costo sea ≤ 0.15 R con spread mediano **y** ≤ 0.25 R en las horas
+   de peor spread. Si ninguno lo cumple, el scalping en este broker se descarta.
+5. Si hay símbolos que pasan: añadir cortos al motor; implementar la estrategia A con desarrollo/validación/fuera de muestra
+   separados, probar contra el azar con triple barrera, y solo entonces B y C.
