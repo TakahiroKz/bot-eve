@@ -162,7 +162,7 @@ def test_mt5_config_file_is_valid_and_models_libertex_costs():
     cfg = load_config(Path(__file__).resolve().parents[1] / "config" / "mt5.yaml")
     btc, eth = cfg.backtest.costs("BTCUSD"), cfg.backtest.costs("ETHUSD")
     assert btc.entry_fee == 0.0 and btc.exit_fee == 0.001  # comisión solo en la salida
-    assert btc.spread_pct == pytest.approx(0.000319) and eth.spread_pct == pytest.approx(0.002)
+    assert btc.spread_pct == pytest.approx(0.000354) and eth.spread_pct == pytest.approx(0.002275)
     assert btc.swap_pct_per_day > 0 and eth.swap_pct_per_day > 0
     assert eth.spread_pct > 5 * btc.spread_pct  # ETH cuesta mucho más de entrar que BTC
     assert cfg.data.symbols == ["BTCUSD", "ETHUSD"] and cfg.strategies == {}
