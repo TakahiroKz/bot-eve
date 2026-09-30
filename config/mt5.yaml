@@ -13,11 +13,10 @@ backtest:
   exit_fee_rate: 0.001
   fee_rate: 0.001
   slippage: 0.0002           # PROVISIONAL
-  # Valores medidos con `mt5-info` (una instantánea; el spread es flotante). Mejorar con el
-  # spread mediano histórico que imprime `mt5-sync`.
+  # Spread = mediano histórico de `mt5-sync` (4h); swap = `mt5-info`.
   symbol_costs:
-    BTCUSD: {spread_pct: 0.000319, swap_pct_per_day: 0.000442}
-    ETHUSD: {spread_pct: 0.002000, swap_pct_per_day: 0.000424}
+    BTCUSD: {spread_pct: 0.000354, swap_pct_per_day: 0.000442}
+    ETHUSD: {spread_pct: 0.002275, swap_pct_per_day: 0.000424}
   holdout_start: "2025-07-01"
   reports_dir: reports/mt5
 

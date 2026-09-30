@@ -79,6 +79,12 @@ def _parser() -> argparse.ArgumentParser:
         s.add_argument("--end")
         s.add_argument("--final", action="store_true", help="evalúa solo el holdout reservado")
         s.add_argument("--report", type=Path, help="ruta del informe HTML")
+    fx = sub.add_parser("fixed", help="parámetros fijos (sin optimizar) por periodo y símbolo")
+    fx.add_argument("--strategy", required=True, choices=sorted(REGISTRY))
+    fx.add_argument("--params", nargs="*")
+    fx.add_argument("--interval", default="4h")
+    fx.add_argument("--symbols", nargs="+")
+    fx.add_argument("--risk-sizing", action="store_true")
     sub.add_parser("list", help="estrategias disponibles y su estado en la configuración")
     cmp_ = sub.add_parser("compare", help="walk-forward de varias estrategias/pares/intervalos")
     cmp_.add_argument("--strategies", nargs="+", choices=sorted(REGISTRY))
@@ -114,12 +120,57 @@ def _print_metrics(m: dict) -> None:
     )
 
 
+def _fixed(cfg: Config, args) -> int:
+    """Comprobación de consistencia: mismos parámetros, datos propios del símbolo/broker.
+
+    Muestra por separado el periodo de desarrollo (antes de `holdout_start`) y el posterior.
+    No optimiza nada.
+    """
+    bt = cfg.backtest
+    params = _parse_params(args.params)
+    risk = (
+        RiskSizing(cfg.risk.risk_per_trade, cfg.risk.default_stop_pct) if args.risk_sizing else None
+    )
+    cut = pd.Timestamp(bt.holdout_start, tz="UTC")
+    rows = []
+    for symbol in args.symbols or cfg.data.symbols:
+        df = CandleStore(cfg.data.dir).read(symbol, args.interval)
+        if df.empty:
+            print(f"{symbol}: sin datos {args.interval}")
+            continue
+        for label, start, end in (
+            ("desarrollo", None, cut - pd.Timedelta(seconds=1)),
+            ("posterior", cut, None),
+        ):
+            res = run_backtest(
+                df, build_strategy(args.strategy, **params), bt.costs(symbol), rules_for(symbol),
+                bt.initial_cash, bt.size_fraction, start=start, end=end, risk=risk,
+            )  # fmt: skip
+            m = res.metrics
+            rows.append(
+                {
+                    "símbolo": symbol, "periodo": label, "desde": m["start"][:10], "hasta": m["end"][:10],
+                    "retorno%": round(m["total_return"] * 100, 1), "B&H%": round(m["buy_and_hold_return"] * 100, 1),
+                    "PF": round(m["profit_factor"], 2), "Sharpe": round(m["sharpe"], 2),
+                    "MaxDD%": round(m["max_drawdown"] * 100, 1), "B&H_DD%": round(m["buy_and_hold_max_drawdown"] * 100, 1),
+                    "ops": m["trades"], "win%": round(m["win_rate"] * 100, 1),
+                }
+            )  # fmt: skip
+    table = pd.DataFrame(rows)
+    with pd.option_context("display.width", 200):
+        print(f"{args.strategy} {args.params or ''} {args.interval}  (datos de {cfg.data.dir})")
+        print(table.to_string(index=False))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     cfg = load_config(args.config)
     setup_logging(cfg.logging.level, None)
     bt = cfg.backtest
 
+    if args.command == "fixed":
+        return _fixed(cfg, args)
     if args.command == "list":
         for name, cls in sorted(REGISTRY.items()):
             sc = cfg.strategies.get(name)

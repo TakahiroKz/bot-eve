@@ -46,3 +46,12 @@ def test_cli_run_and_walkforward_and_holdout(tmp_path, capsys):
 
     assert main([*base, "run", "--params", "fast=5", "slow=20", "--final"]) == 0
     assert "holdout" in capsys.readouterr().out
+
+
+def test_cli_fixed_reports_both_periods_without_optimizing(tmp_path, capsys):
+    cfg = _setup(tmp_path)  # holdout_start 2024-04-01, datos 15m sintéticos
+    rc = main(["--config", str(cfg), "fixed", "--strategy", "sma_cross", "--params", "fast=5",
+               "slow=20", "--interval", "15m", "--symbols", "BTCUSDT", "--risk-sizing"])  # fmt: skip
+    out = capsys.readouterr().out
+    assert rc == 0 and "desarrollo" in out and "posterior" in out and "BTCUSDT" in out
+    assert "2024-03-31" in out or "2024-04-01" in out  # los periodos se separan en holdout_start

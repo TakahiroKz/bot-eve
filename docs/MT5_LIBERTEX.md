@@ -82,6 +82,36 @@ python -m bot_eve.data mt5-sync                   # historial 15m/1h/4h de BTCUS
 3. Con eso se repite la investigación con los costos de CFD:
    `python -m bot_eve.backtest --config config/mt5.yaml compare --intervals 1h 4h --risk-sizing`
 
+## Comprobación de consistencia con el historial del broker (criterios fijados antes de ejecutar)
+Historial descargado con `mt5-sync`: **1h y 4h desde 2020-01-01** (BTCUSD y ETHUSD); 15m limitado a
+100.000 velas (desde nov-2023). Spread mediano histórico (4h): **BTCUSD 0.0354%, ETHUSD 0.2275%**.
+Las velas están en hora del servidor (parece UTC+3), así que las de 4h no coinciden en hora con las de Binance.
+
+Se prueba `atr_breakout` con **los mismos parámetros fijos** (40/20/2×ATR, 4h, riesgo 1%, sin optimizar)
+sobre los datos del propio broker y los costos de `config/mt5.yaml`:
+```powershell
+python -m bot_eve.backtest --config config/mt5.yaml fixed --strategy atr_breakout --params entry_len=40 exit_len=20 stop_atr=2.0 --risk-sizing
+```
+Referencia: las mismas velas de **Binance** con los costos de Libertex:
+
+| Símbolo | Periodo | Retorno | PF | Sharpe | Máx. DD | B&H DD | Operaciones |
+|---|---|---|---|---|---|---|---|
+| BTC | desarrollo (→2025-06-30) | +238.5% | 2.78 | 1.51 | −19.0% | −77.0% | 97 |
+| BTC | posterior (2025-07-01→) | +4.7% | 1.28 | 0.36 | −13.5% | −53.4% | 23 |
+| ETH | desarrollo | +100.2% | 1.82 | 1.00 | −15.7% | −81.1% | 116 |
+| ETH | posterior | +3.4% | 1.19 | 0.30 | −14.5% | −68.0% | 24 |
+
+**Criterios** (sobre datos de MT5):
+1. **Desarrollo:** PF ≥ 1.3 y retorno > 0 en BTCUSD y ETHUSD.
+2. **Posterior:** retorno > 0 en ambos. *Es informativo:* cubre el mismo mercado que el holdout de
+   Binance, ya consumido, así que **no es evidencia independiente**; solo comprueba que el broker
+   y sus costos no cambian el resultado.
+3. **Máx. drawdown menor que el del buy & hold** en ambos periodos y símbolos.
+4. **Número de operaciones dentro de ±35% de la referencia** (verifica que las series son comparables).
+
+Si falla 1 o 3, `atr_breakout` **no se despliega en MT5**. Si solo falla 4, se investiga la
+alineación de horas antes de concluir. No se reajustan parámetros para «arreglarlo».
+
 ## Advertencias
 - Las velas de MT5 vienen en **hora del servidor del broker**, no en UTC, y los precios del CFD
   no coinciden exactamente con los de Binance. Por eso se re-valida con el propio historial.
