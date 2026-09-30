@@ -181,7 +181,9 @@ class Mt5Broker(Broker):
             }
         )  # fmt: skip
         price = result.price or tick.ask
-        return Fill(symbol, "buy", result.volume * info.trade_contract_size, price, 0.0,
+        # Algunos brokers (Forex) cobran comisión también al entrar: se lee de la operación de entrada.
+        entry_cost = self._deal_cost(result.deal)
+        return Fill(symbol, "buy", result.volume * info.trade_contract_size, price, entry_cost,
                     self.currency, str(result.order), self.now())  # fmt: skip
 
     def market_sell(self, symbol: str, qty: float) -> Fill:

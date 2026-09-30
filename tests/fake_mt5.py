@@ -21,8 +21,17 @@ class FakeTradingMt5:
     ACCOUNT_TRADE_MODE_REAL, ACCOUNT_MARGIN_MODE_RETAIL_HEDGING = 2, 2
     TIMEFRAME_M15, TIMEFRAME_H1, TIMEFRAME_H4 = 15, 16385, 16388
 
-    def __init__(self, real=False, algo=True, session=True, balance=50000.0, server_offset_h=3):
+    def __init__(
+        self,
+        real=False,
+        algo=True,
+        session=True,
+        balance=50000.0,
+        server_offset_h=3,
+        entry_commission_rate=0.0,
+    ):
         self.real, self.algo, self.session = real, algo, session
+        self.entry_commission_rate = entry_commission_rate
         self.balance, self.leverage = balance, 1000
         self.bid, self.ask = 84000.0, 84030.0
         self.offset = pd.Timedelta(hours=server_offset_h)
@@ -109,8 +118,10 @@ class FakeTradingMt5:
             ticket = next(self._ids)
             self.positions[ticket] = NS(ticket=ticket, symbol=req["symbol"], volume=req["volume"],
                                         price_open=req["price"], sl=0.0, magic=req["magic"])  # fmt: skip
+            self.balance -= req["volume"] * req["price"] * self.entry_commission_rate
             self.deals.append(NS(ticket=next(self._ids), position_id=ticket, entry=self.DEAL_ENTRY_IN,
-                                 volume=req["volume"], price=req["price"], commission=0.0, swap=0.0,
+                                 volume=req["volume"], price=req["price"],
+                                 commission=-req["volume"] * req["price"] * self.entry_commission_rate, swap=0.0,
                                  fee=0.0, reason=self.DEAL_REASON_CLIENT, symbol=req["symbol"]))  # fmt: skip
             return self._done(
                 order=ticket, deal=self.deals[-1].ticket, volume=req["volume"], price=req["price"]

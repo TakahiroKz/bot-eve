@@ -81,12 +81,14 @@ def _roundtrip(cfg: Config, broker: Broker, symbol: str) -> int:
     price = broker.get_price(symbol)
     qty = rules.round_qty(max(rules.min_qty, rules.min_notional * 1.2 / price))
     qty = rules.round_qty(qty + rules.step_size) if not rules.is_valid(qty, price) else qty
-    print(
-        f"Comprando {qty} {symbol} a mercado (≈ {qty * price:.2f} {cfg.execution.quote_asset})..."
-    )
+    quote = cfg.execution.quote_asset
+    print(f"Comprando {qty} {symbol} a mercado (≈ {qty * price:.2f} {quote})...")
+    balance_before = broker.get_balance(quote) if broker.name == "mt5" else None
     fill = broker.market_buy(symbol, qty)
     net = rules.round_qty(fill.net_qty)
-    print(f"  ejecutada: {fill.qty} @ {fill.price}, comisión {fill.fee} {fill.fee_asset}")
+    print(
+        f"  ejecutada: {fill.qty} @ {fill.price}, comisión de entrada {fill.fee:.4f} {fill.fee_asset}"
+    )
     stop = fill.price * 0.9
     oid = broker.place_stop_loss(symbol, net, stop, stop * 0.997)
     print(f"  stop colocado ({oid}) en {stop:.2f}: {broker.get_order(symbol, oid).status}")
@@ -105,6 +107,21 @@ def _roundtrip(cfg: Config, broker: Broker, symbol: str) -> int:
     print(f"  vendida: {sold.qty} @ {sold.price}, costo de cierre {sold.fee:.4f}")
     final = broker.get_order(symbol, oid).status
     print(f"  estado final del stop/posición: {final}")
+    if (
+        balance_before is not None
+    ):  # CFD: el saldo refleja spread + comisiones + swap de toda la operación
+        total = balance_before - broker.get_balance(quote)
+        value = qty * fill.price
+        print(
+            f"  COSTO TOTAL REAL (saldo antes - después): {total:.4f} {quote} = {total / value:.4%} del valor"
+        )
+        if symbol.endswith("USD") and "JPY" not in symbol:
+            from bot_eve.backtest.base_rates import pip_size
+
+            pips = total / (fill.qty * pip_size(symbol))
+            print(
+                f"  ≈ {pips:.2f} pips (spread + comisiones + swap), válido si el par cotiza en USD"
+            )
     if broker.name == "mt5" and final == "open":
         print("ERROR: la posición sigue abierta tras la venta. Ciérrala a mano en MT5.")
         return 3

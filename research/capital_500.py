@@ -26,7 +26,13 @@ curves, trades = {}, []
 for sym in ("BTCUSDT", "ETHUSDT", "BNBUSDT"):
     df = CandleStore(cfg.data.dir).read(sym, "4h")
     res = run_backtest(
-        df, build_strategy("atr_breakout", **params), bt.costs(sym), rules_for(sym), CASH, 0.25, risk=risk
+        df,
+        build_strategy("atr_breakout", **params),
+        bt.costs(sym),
+        rules_for(sym),
+        CASH,
+        0.25,
+        risk=risk,
     )
     curves[sym] = res.equity / CASH
     t = res.trades.copy()
@@ -45,7 +51,10 @@ def stats(e: pd.Series, label: str) -> dict:
 
 
 rows = [stats(eq, "todo")]
-for label, part in (("desarrollo (<2025-07)", eq[eq.index < cut]), ("posterior (≥2025-07)", eq[eq.index >= cut])):
+for label, part in (
+    ("desarrollo (<2025-07)", eq[eq.index < cut]),
+    ("posterior (≥2025-07)", eq[eq.index >= cut]),
+):
     if len(part) > 10:
         rows.append(stats(part, label))
 pd.set_option("display.width", 200)
@@ -55,18 +64,26 @@ m = eq.resample("ME").last().pct_change().dropna()
 yearly = eq.resample("YE").last().pct_change()
 yearly.iloc[0] = eq.resample("YE").last().iloc[0] / CASH - 1
 print("\nRetorno por año natural:", {str(i.year): f"{v:+.1%}" for i, v in yearly.items()})
-print(f"Meses: {len(m)} | positivos {(m > 0).mean():.0%} | mejor {m.max():+.1%} | peor {m.min():+.1%}")
+print(
+    f"Meses: {len(m)} | positivos {(m > 0).mean():.0%} | mejor {m.max():+.1%} | peor {m.min():+.1%}"
+)
 
 # remuestreo de meses (con reemplazo) para ver la dispersión de un año cualquiera
 rng = np.random.default_rng(0)
 sims = np.prod(1 + rng.choice(m.to_numpy(), size=(20000, 12)), axis=1) - 1
 print("\nDispersión de un año (20.000 remuestreos de 12 meses de la propia historia):")
 for q in (0.05, 0.25, 0.5, 0.75, 0.95):
-    print(f"  percentil {int(q * 100):>2}: {np.quantile(sims, q):+.1%}  ({CASH * (1 + np.quantile(sims, q)):,.0f} USD)")
+    print(
+        f"  percentil {int(q * 100):>2}: {np.quantile(sims, q):+.1%}  ({CASH * (1 + np.quantile(sims, q)):,.0f} USD)"
+    )
 print(f"  P(perder dinero en el año) = {(sims < 0).mean():.0%} | P(perder más del 10%) = {(sims < -0.10).mean():.0%} | "
       f"P(ganar más del 20%) = {(sims > 0.20).mean():.0%}")  # fmt: skip
 n = len(trades)
 yrs = (eq.index[-1] - eq.index[0]).days / 365.25
-print(f"\nOperaciones: {n} en {yrs:.1f} años = {n / yrs / 12:.1f} al mes entre los 3 pares | "
-      f"rechazadas por mínimos: 0 con 500 USD (posición típica ~{CASH * 0.25:.0f} USD)")
-print(f"Costos pagados (comisiones): {trades['fees'].sum():,.0f} USD sobre {CASH * 3:,.0f} USD de capital simulado (3 cuentas)")
+print(
+    f"\nOperaciones: {n} en {yrs:.1f} años = {n / yrs / 12:.1f} al mes entre los 3 pares | "
+    f"rechazadas por mínimos: 0 con 500 USD (posición típica ~{CASH * 0.25:.0f} USD)"
+)
+print(
+    f"Costos pagados (comisiones): {trades['fees'].sum():,.0f} USD sobre {CASH * 3:,.0f} USD de capital simulado (3 cuentas)"
+)

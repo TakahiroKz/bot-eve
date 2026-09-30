@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pandas as pd
 import pytest
 from fake_mt5 import FakeTradingMt5, make_rates
@@ -178,3 +180,31 @@ def test_close_reason_logging(reason, level, text, caplog):
         assert not warned
     else:
         assert warned and warned[0].levelname == level and text in warned[0].getMessage()
+
+
+def test_entry_commission_is_read_from_the_entry_deal():
+    """Forex suele cobrar comisión también al entrar; si no se lee, el P&L del bot sale mejor que el real."""
+    b = Mt5Broker("BTCUSD", mt5=FakeTradingMt5(entry_commission_rate=0.0005))
+    fill = b.market_buy("BTCUSD", 0.5)
+    assert fill.fee == pytest.approx(0.5 * fill.price * 0.0005)
+    from bot_eve.execution.base import fee_in_quote
+
+    assert fee_in_quote(fill) == pytest.approx(fill.fee)  # entra en el costo de la operación
+
+
+def test_roundtrip_reports_the_real_total_cost_from_the_balance(capsys):
+    import bot_eve.engine.__main__ as cli
+    from bot_eve.common.config import load_config
+
+    fake = FakeTradingMt5(entry_commission_rate=0.0002)
+    broker = Mt5Broker("BTCUSD", mt5=fake)
+    cfg = load_config(Path(__file__).resolve().parents[1] / "config" / "mt5.yaml")
+    before = fake.balance
+    assert cli._roundtrip(cfg, broker, "BTCUSD") == 0
+    out = capsys.readouterr().out
+    real = before - fake.balance
+    assert real > 0 and f"{real:.4f}" in out and "COSTO TOTAL REAL" in out
+    # spread 30 USD × 0.01 + comisión de entrada 0.02% + comisión de salida 0.1% + swap simulado de 3 USD
+    assert real == pytest.approx(
+        0.01 * 30 + 0.01 * 84030 * 0.0002 + 0.01 * 84000 * 0.001 + 3.0, rel=0.02
+    )
