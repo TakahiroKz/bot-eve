@@ -67,8 +67,16 @@ def test_capital_fractions_cannot_exceed_one(tmp_path):
     assert list(load_config(f).active_strategies("live")) == ["a"]
 
 
-def test_repo_config_keeps_everything_in_backtest_stage(monkeypatch):
+def test_repo_config_only_atr_breakout_reaches_demo_and_nothing_is_live(monkeypatch):
     monkeypatch.chdir(Path(__file__).resolve().parents[1])
     cfg = load_config()
     assert {"rsi_trend", "atr_breakout", "bollinger_reversion", "ema_adx"} <= set(cfg.strategies)
-    assert cfg.active_strategies("demo") == {}  # nada pasa a demo sin validación
+    assert list(cfg.active_strategies("demo")) == ["atr_breakout"]  # la única validada
+    assert cfg.active_strategies("live") == {}  # nada con dinero real
+    atr = cfg.strategies["atr_breakout"]
+    assert atr.intervals == ["4h"] and atr.params == {
+        "entry_len": 40,
+        "exit_len": 20,
+        "stop_atr": 2.0,
+    }
+    assert cfg.execution.mode == "demo" and cfg.execution.i_understand_real_money is False

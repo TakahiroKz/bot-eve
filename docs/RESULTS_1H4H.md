@@ -48,10 +48,29 @@ riesgo** (caídas de −10% a −26%), no el retorno absoluto.
 - Con 3.54 USDT no se alcanza el mínimo de 5 USDT por orden con estos tamaños (≈20% del
   capital por operación). Solo tiene sentido en demo (testnet) o con más capital.
 
-## Siguiente paso propuesto
-1. Fijar parámetros (no se re-optimizan en vivo) **a partir solo de datos de desarrollo**:
-   `atr_breakout` entry 40 / exit 20 / stop 2×ATR y `sma_cross` 10/100, valores centrales de
-   zonas donde toda la rejilla es rentable.
-2. **Una única** evaluación en el holdout (2025-07-01 en adelante) de esas dos configuraciones:
-   aprobada si retorno neto > 0 y PF > 1. Si falla, no se reajusta.
-3. Solo entonces, pasar a `stage: demo` en Binance Testnet.
+## Holdout (evaluación única, 2025-07-01 a 2026-09-29, 4h)
+Parámetros fijos decididos solo con datos de desarrollo: `atr_breakout` 40/20/2×ATR y
+`sma_cross` 10/100. Mismo riesgo y costos. Criterio: retorno neto > 0 y PF > 1 en al menos
+2 de 3 pares. **El holdout queda consumido: no se vuelve a usar para decidir.**
+
+| Estrategia | Par | Retorno | B&H | PF | Sharpe | Máx. DD | B&H DD | Operaciones |
+|---|---|---|---|---|---|---|---|---|
+| atr_breakout | BTC | +6.3% | −22.2% | 1.37 | 0.46 | −12.8% | −53.4% | 23 |
+| atr_breakout | ETH | +8.6% | +7.4% | 1.57 | 0.65 | −10.9% | −68.0% | 22 |
+| atr_breakout | BNB | +12.1% | +15.1% | 1.42 | 0.69 | −20.8% | −59.6% | 30 |
+| sma_cross | BTC | −5.0% | −22.2% | 0.64 | −0.49 | −14.3% | −53.4% | 21 |
+| sma_cross | ETH | +4.2% | +7.4% | 1.29 | 0.31 | −13.4% | −68.0% | 22 |
+| sma_cross | BNB | +2.5% | +15.1% | 1.22 | 0.22 | −18.7% | −59.6% | 21 |
+
+- **`atr_breakout` aprueba (3/3 pares).** Retorno positivo y PF 1.37–1.57 con caídas de −11% a −21%.
+- **`sma_cross` aprueba por poco (2/3):** pierde en BTC y sus retornos son pequeños.
+- **Muestra pequeña:** solo 21–30 operaciones por par en 15 meses; el PF tiene mucha incertidumbre.
+- **Periodo con mercado lateral/bajista en BTC** (buy & hold −22%): favorable a una estrategia
+  que se queda fuera. No prueba que funcione en un mercado alcista fuerte.
+- El backtest trata cada par como una cuenta independiente con capital completo; en vivo el
+  capital se reparte, por eso `atr_breakout` se asigna 0.25 por par (equivale a ~20% de riesgo
+  por posición con stop 2×ATR). Con `sma_cross` y `atr_breakout` a la vez el capital no alcanzaría
+  sin alterar los resultados, así que `sma_cross` queda en backtest hasta diseñar ese reparto.
+
+## Decisión
+`atr_breakout` pasa a **stage: demo** (Binance Testnet) con parámetros fijos. Nada pasa a `live`.

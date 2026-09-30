@@ -5,7 +5,8 @@ criterios de la sección 4.
 
 Actualización: en 5m/15m/1h ninguna pasó. La investigación en **4h con gestión de riesgo**
 (`docs/RESEARCH_1H4H.md`, resultados en `docs/RESULTS_1H4H.md`) aprobó el walk-forward para
-`atr_breakout` y `sma_cross`; falta la confirmación única en el holdout antes de pasar a demo.
+`atr_breakout` y `sma_cross`; el holdout (evaluación única) la confirmó: `atr_breakout` pasa a **demo**; `sma_cross`
+queda en backtest (aprobó por poco y falta el reparto de capital entre estrategias).
 
 ## 1. Estrategias actuales
 
