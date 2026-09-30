@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from bot_eve.common.config import load_config
@@ -31,7 +33,7 @@ def test_explicit_missing_config_fails(tmp_path):
 
 
 def test_repo_default_config_is_valid(monkeypatch):
-    monkeypatch.chdir(__file__.rsplit("/tests", 1)[0])
+    monkeypatch.chdir(Path(__file__).resolve().parents[1])
     assert load_config().data.start == "2020-01"
 
 
@@ -66,7 +68,7 @@ def test_capital_fractions_cannot_exceed_one(tmp_path):
 
 
 def test_repo_config_keeps_everything_in_backtest_stage(monkeypatch):
-    monkeypatch.chdir(__file__.rsplit("/tests", 1)[0])
+    monkeypatch.chdir(Path(__file__).resolve().parents[1])
     cfg = load_config()
     assert {"rsi_trend", "atr_breakout", "bollinger_reversion", "ema_adx"} <= set(cfg.strategies)
     assert cfg.active_strategies("demo") == {}  # nada pasa a demo sin validación
