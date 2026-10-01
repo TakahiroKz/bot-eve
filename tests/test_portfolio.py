@@ -91,3 +91,14 @@ def test_symbols_with_different_histories_align():
     b = PortfolioLeg("B", short, Scripted({0: (BUY, 0.05, None)}), ZERO, LOOSE)
     res = run_portfolio([a, b], 1000.0, RISK, 0.25, 4)
     assert set(res.trades.symbol) == {"A", "B"}
+
+
+def test_margin_mode_allows_notional_above_cash_up_to_leverage_cap():
+    rows = flat(100, 8)
+    a = leg("A", rows, {1: (BUY, 0.002, None)})  # riesgo 1% / stop 0.2% = 5x el patrimonio
+    spot = run_portfolio([a], 1000.0, RISK, 1.0, 1)
+    assert spot.trades.iloc[0].qty * 100 <= 1000.0 + 1e-6  # spot: limitado al efectivo
+    lev = run_portfolio([a], 1000.0, RISK, 10.0, 1, max_leverage=3.0)
+    assert lev.trades.iloc[0].qty * 100 == pytest.approx(3000.0)  # tope de apalancamiento 3x
+    with pytest.raises(ValueError):
+        run_portfolio([a], 1000.0, RISK, 5.0, 1)  # tope > 1 exige max_leverage

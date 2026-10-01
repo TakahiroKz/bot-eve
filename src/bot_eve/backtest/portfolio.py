@@ -54,13 +54,16 @@ def run_portfolio(
     risk: RiskSizing | None = None,
     position_cap: float = 0.25,
     max_positions: int = 4,
+    max_leverage: float | None = None,
     start: str | pd.Timestamp | None = None,
     end: str | pd.Timestamp | None = None,
 ) -> PortfolioResult:
     if not legs:
         raise ValueError("Se necesita al menos un par")
-    if not 0 < position_cap <= 1 or max_positions < 1:
-        raise ValueError("position_cap en (0, 1] y max_positions >= 1")
+    if max_positions < 1 or position_cap <= 0 or (max_leverage is None and position_cap > 1):
+        raise ValueError(
+            "position_cap en (0, 1] (más de 1 solo con max_leverage) y max_positions >= 1"
+        )
     risk = risk or RiskSizing()
 
     idx = legs[0].df.index
@@ -131,7 +134,13 @@ def run_portfolio(
             px = o[k][i] * (1 + cs.slippage + cs.spread_pct)
             frac = risk.stop_pct(p_stop)
             eq = mark()
-            q = min(eq * position_cap, eq * risk.risk_per_trade / frac, cash) / (
+            if max_leverage is None:
+                avail = cash  # spot: solo se gasta efectivo
+            else:  # margen: nocional bruto abierto <= patrimonio * apalancamiento máximo (sin intereses)
+                avail = eq * max_leverage - sum(
+                    p["qty"] * last_c[j] for j, p in enumerate(pos) if p
+                )
+            q = min(eq * position_cap, eq * risk.risk_per_trade / frac, max(avail, 0.0)) / (
                 px * (1 + cs.entry_fee)
             )
             q = legs[k].rules.round_qty(q)

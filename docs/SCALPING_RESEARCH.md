@@ -219,3 +219,12 @@ Pendiente: confirmar en FX (`python research/breakout_htf_test.py --fx --dir dat
 | 4h | 261 | +0.024 | +0.024 | 1.04 | 2/5 | 3/4 | +0.019 |
 **Ninguno pasa** (R neta < +0.05, PF < 1.15, años positivos < 4/5). La señal bruta existe a 1h y 4h pero es mínima (+0.02 a +0.04 R). No hay coherencia entre cripto (4h: +0.19 R) y FX (4h: +0.02 R) y el
 holdout de cripto 4h dio equilibrio, así que **la línea de ruptura con volumen queda cerrada**. Una prueba de «solo largos» en cripto sería una hipótesis nueva sobre un holdout ya consumido: no se hace sin datos frescos (forward en demo).
+
+## Estrategia 4h validada (`atr_breakout`) en FX — pre-registro (escrito ANTES de ejecutar)
+Pregunta: ¿generaliza la ruptura de 4h (mismos parámetros fijos 40/20/2×ATR, sin reoptimizar) a EURUSD, GBPUSD, USDJPY, AUDUSD? Datos: 1h de MT5 (desde 2020, PC de Leo) remuestreado a 4h
+(velas en hora del servidor, no coinciden con Binance). Cartera de capital compartido (`portfolio.py`, ahora con modo margen `max_leverage`), riesgo 0.5% del patrimonio por operación, nocional máx. por posición
+10× el patrimonio y bruto máx. 10× (sin intereses), máx. 4 posiciones. **A:** solo largos de cada par. **B:** largos + cortos, donde el corto = ruptura larga del par invertido (O,H,L,C → 1/O, 1/L, 1/H, 1/C;
+equivalente exacto para un par de divisas). Costos por lado: FXo = slippage 0.002%, sin swap; FXr = slippage 0.005% + swap 0.005%/día sobre el nocional (≈ 1.8% anual, pesimista; el swap real por par se medirá con `mt5-info`).
+Desarrollo: < 2026-01-01; holdout: desde 2026-01-01 (reservado en config/mt5_fx.yaml; nunca visto).
+Criterios (por variante, costos FXr, desarrollo): >= 150 operaciones; CAGR > 0; PF >= 1.15; caída máxima mejor que −25%; >= 3/4 pares con retorno positivo (por trade medio). Luego holdout UNA vez: retorno > 0 y PF > 1.
+2 variantes = 2 pruebas. Limitaciones declaradas: sin spread histórico real (provisional), swap por par desconocido, cortos y apalancamiento requieren cuenta CFD (Libertex), un par y su inverso podrían abrirse a la vez en B (se informa).
