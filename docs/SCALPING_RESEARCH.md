@@ -122,3 +122,20 @@ Conclusión: market making no es viable con 500 USD y comisiones retail; con vel
 ## Conclusión del scalping cripto (3 familias, 6 estrategias, 3 marcos)
 Ninguna pasa en desarrollo, ni siquiera con costos optimistas de futuros. Lo más cercano a señal real es 2b (+1.6 pb brutos por operación) y es 8 veces menor que el costo.
 Línea de scalping en cripto cerrada. Pendientes con más sentido: 1h en cripto y FX (spread/comisión mucho menores).
+
+## Marco 1h en cripto — pre-registro (escrito ANTES de ejecutar)
+Mismas estrategias A (pullback), B (z-score) y C (ruptura con volumen) y línea base aleatoria, con entrada en 1h y contexto de **4h** (EMA50/EMA200 y ADX < 20 sobre velas de 4h cerradas),
+mismos parámetros fijos, salida por tiempo a 24 velas (1 día), mismos 4 pares, desarrollo < 2025-07-01. Criterios idénticos a los de A/B: >= 500 ops, R neta >= +0.05 (costos F),
+PF >= 1.15, >= 4/5 años positivos, >= 3/4 pares; luego costos S > 0; luego holdout una vez. 3 pruebas (A, B, C) sobre los mismos datos. Se reporta también la línea base aleatoria.
+Nota: a 1h el costo en R baja mucho (≈ 0.04–0.1 R), así que aquí sí puede aparecer un resultado distinto al de 5m/15m.
+
+### Resultado 1h (desarrollo, 4 pares; `research/scalp_1h_test.py`)
+| Estrategia | Ops | Gana % | R bruta | R neta (F) | PF (F) | Años + | Pares + | R neta (S) |
+|---|---|---|---|---|---|---|---|---|
+| A pullback | 8.164 | 40 | −0.010 | −0.089 | 0.86 | 0/5 | 0/4 | −0.260 |
+| B z-score | 2.178 | 43 | −0.153 | −0.221 | 0.64 | 0/5 | 0/4 | −0.357 |
+| **C ruptura** | 2.734 | 39 | +0.100 | +0.044 | 1.07 | 5/5 | 4/4 | −0.070 |
+| aleatoria | 1.675 | 39 | −0.042 | −0.123 | 0.81 | 1/5 | 0/4 | −0.293 |
+**Ninguna pasa los criterios** (C: R neta +0.044 < +0.05 y PF 1.07 < 1.15 con F; negativa con S). Holdout NO consumido. C es la primera con señal bruta positiva
+(+0.10 R, consistente: 5/5 años y 4/4 pares), pero no cubre costos realistas. No se ajustan umbrales ni parámetros a posteriori para «rescatarla»; si se quisiera seguir, sería una
+hipótesis nueva pre-registrada (p. ej. otro marco como 2h/4h, donde el costo en R es menor).

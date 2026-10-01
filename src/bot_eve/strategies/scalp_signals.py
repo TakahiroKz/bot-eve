@@ -27,11 +27,11 @@ def align_htf(
 
 
 def pullback_momentum(
-    df: pd.DataFrame, htf_df: pd.DataFrame, ltf: str
+    df: pd.DataFrame, htf_df: pd.DataFrame, ltf: str, htf_name: str = "1h"
 ) -> tuple[np.ndarray, np.ndarray]:
     """A: tendencia 1h (EMA50 vs EMA200) + retorno por encima/debajo de la EMA20 con vela a favor."""
     trend = np.sign(ema(htf_df["close"], 50) - ema(htf_df["close"], 200))
-    t = align_htf(trend, df.index, ltf).to_numpy()
+    t = align_htf(trend, df.index, ltf, htf_name).to_numpy()
     c, o = df["close"], df["open"]
     e20 = ema(c, 20)
     up = (c.shift(1) < e20.shift(1)) & (c > e20) & (c > o)
@@ -41,10 +41,10 @@ def pullback_momentum(
 
 
 def zscore_reversion(
-    df: pd.DataFrame, htf_df: pd.DataFrame, ltf: str
+    df: pd.DataFrame, htf_df: pd.DataFrame, ltf: str, htf_name: str = "1h"
 ) -> tuple[np.ndarray, np.ndarray]:
     """B: solo si el 1h está en rango (ADX < 20); largo si z < -2.5, corto si z > 2.5."""
-    rng = align_htf((adx(htf_df, 14) < 20).astype(float), df.index, ltf).to_numpy() > 0
+    rng = align_htf((adx(htf_df, 14) < 20).astype(float), df.index, ltf, htf_name).to_numpy() > 0
     c = df["close"]
     z = ((c - sma(c, 48)) / c.rolling(48).std()).to_numpy()
     side = np.where(rng & (z < -2.5), 1, np.where(rng & (z > 2.5), -1, 0))
@@ -62,7 +62,7 @@ def random_entries(
 
 
 def breakout_volume(
-    df: pd.DataFrame, htf_df: pd.DataFrame, ltf: str
+    df: pd.DataFrame, htf_df: pd.DataFrame, ltf: str, htf_name: str = "1h"
 ) -> tuple[np.ndarray, np.ndarray]:
     """C: ruptura del máximo/mínimo de las 48 velas previas con volumen > 1.5× el promedio de 20 y tendencia 1h a favor."""
     trend = align_htf(
