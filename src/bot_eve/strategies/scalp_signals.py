@@ -59,3 +59,21 @@ def random_entries(
     fire = rng.random(len(df)) < prob
     side = np.where(fire, rng.choice([-1, 1], len(df)), 0)
     return side.astype(np.int8), atr(df, 14).to_numpy()
+
+
+def breakout_volume(
+    df: pd.DataFrame, htf_df: pd.DataFrame, ltf: str
+) -> tuple[np.ndarray, np.ndarray]:
+    """C: ruptura del máximo/mínimo de las 48 velas previas con volumen > 1.5× el promedio de 20 y tendencia 1h a favor."""
+    trend = align_htf(
+        np.sign(ema(htf_df["close"], 50) - ema(htf_df["close"], 200)), df.index, ltf
+    ).to_numpy()
+    c = df["close"]
+    hi, lo = df["high"].rolling(48).max().shift(1), df["low"].rolling(48).min().shift(1)
+    vol = (df["volume"] > 1.5 * df["volume"].rolling(20).mean()).to_numpy()
+    side = np.where(
+        (c > hi).to_numpy() & vol & (trend > 0),
+        1,
+        np.where((c < lo).to_numpy() & vol & (trend < 0), -1, 0),
+    )
+    return side.astype(np.int8), atr(df, 14).to_numpy()

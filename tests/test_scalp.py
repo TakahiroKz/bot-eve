@@ -98,3 +98,19 @@ def test_pullback_signals_have_no_lookahead():
         cut, htf[htf.index + pd.Timedelta(hours=1) <= cut.index[-1] + pd.Timedelta(minutes=5)], "5m"
     )
     assert (full[:k] == part[:k]).all() and (full != 0).sum() > 10
+
+
+def test_breakout_volume_fires_only_with_volume_and_is_causal():
+    from bot_eve.strategies.scalp_signals import breakout_volume
+
+    close = np.r_[np.linspace(100, 120, 3500), np.linspace(120, 140, 100)]
+    df = bars([(a, a + 0.1, a - 0.1, a) for a in close])
+    df["volume"] = 1.0
+    htf = df.resample("1h").agg(
+        {"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"}
+    )
+    side, _ = breakout_volume(df, htf, "5m")
+    assert (side != 0).sum() == 0  # sin volumen alto no hay señal
+    df.loc[df.index[3560], "volume"] = 10.0
+    side2, _ = breakout_volume(df, htf, "5m")
+    assert side2[3560] == 1 and (side2 != 0).sum() == 1
