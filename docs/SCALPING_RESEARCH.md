@@ -139,3 +139,44 @@ Nota: a 1h el costo en R baja mucho (≈ 0.04–0.1 R), así que aquí sí puede
 **Ninguna pasa los criterios** (C: R neta +0.044 < +0.05 y PF 1.07 < 1.15 con F; negativa con S). Holdout NO consumido. C es la primera con señal bruta positiva
 (+0.10 R, consistente: 5/5 años y 4/4 pares), pero no cubre costos realistas. No se ajustan umbrales ni parámetros a posteriori para «rescatarla»; si se quisiera seguir, sería una
 hipótesis nueva pre-registrada (p. ej. otro marco como 2h/4h, donde el costo en R es menor).
+
+## Replanteo: scalping multi-timeframe 15m/5m/1m e intradía 1h/15m/5m — pre-registro (escrito ANTES de ejecutar)
+Código: `bot_eve/strategies/mtf.py` (señales, con test de causalidad), `bot_eve/backtest/scalp.py` (simulador con salida por falta de momentum y cierre de sesión),
+`research/mtf_test.py`. Cortos y largos. Todo el contexto usa velas cerradas. Parámetros fijos de abajo, sin optimizar.
+
+**Contexto 15m** (EMA9/EMA20 y ADX14 sobre velas de 15m): *tendencia alcista* = EMA9 > EMA20, EMA20 subiendo (vs hace 3 velas) y ADX >= 20 (bajista: espejo); *rango* = ADX < 20.
+**Estrategia S1, reversión (solo en rango 15m):** en 5m el máximo (mínimo) tocó o superó la banda de Bollinger(20, 2) superior (inferior) en las últimas 3 velas de 5m cerradas;
+gatillo en 1m: vela de rechazo (estrella fugaz/martillo con mecha >= 2× cuerpo y cierre en el tercio opuesto, o envolvente) con RSI(14) de 1m > 70 (< 30) en esa vela o la anterior; entrada en sentido contrario.
+**S2, impulso EMA 9/20 (solo en tendencia 15m):** en 5m el mínimo (máximo) tocó la EMA9 en las últimas 3 velas de 5m con cierre sobre (bajo) la EMA20; gatillo en 1m: vela a favor que cierra por encima
+del máximo (debajo del mínimo) de la anterior.
+**S3, ruptura de micro-caja (cualquier contexto):** rango de las 6 velas de 1m previas <= 2×ATR14(1m); la vela de 1m cierra fuera de la caja con volumen > 2× el promedio de esas 6 velas.
+**Gestión (S1–S3):** stop detrás del mínimo/máximo de las últimas 5 velas de 1m (+0.1 ATR, mínimo 0.5 ATR); objetivo 2R (variante informativa 1.5R); si al cierre de la 3.ª vela
+de 1m no va en positivo, se cierra (sin momentum); máximo 15 velas de 1m. Simplificación declarada: no se modela el cierre parcial del 80% ni el trailing (un solo objetivo).
+**Intradía I1 (barrido y rechazo):** vela de 15m que perfora el máximo (mínimo) del día previo y cierra de vuelta dentro con vela de rechazo (cualquier tendencia 1h);
+**I2 (continuación):** tendencia 1h (EMA20 vs EMA50) y la vela de 15m cierra de nuevo por encima (debajo) de su EMA20 tras estar por debajo (encima). Setup válido 3 velas de 15m.
+Gatillo en 5m: envolvente/rechazo a favor, o cierre por encima (debajo) del máximo (mínimo) de las 3 velas previas con volumen > 1.5× el promedio de 20. Stop detrás del extremo de las últimas 6 velas de 5m
+(+0.1 ATR, mínimo 0.5 ATR); objetivo 2R, y la operación se descarta si el siguiente nivel clave (máx./mín. del día previo) queda a menos de 2R; se cierra al final de la sesión (cripto: 00:00 UTC; FX: 21:00 UTC); sin overnight.
+
+**Costos por lado.** Cripto: F = 0.04% comisión + 0.02% slippage; S = 0.10% + 0.05%. FX (provisionales, el spread histórico de las velas es 0): FXo = 0.002% (≈ 0.2 pip en EURUSD); FXr = 0.005% (≈ 0.5 pip).
+**Datos.** Cripto 1m/5m/15m/1h desde 2020. FX (PC de Leo): 5m desde 2025-05-29, 15m desde 2022-09, 1h desde 2020; 1m de FX no sincronizado (el broker entrega ~100.000 velas ≈ 2.5 meses): S1–S3 en FX solo cuando se sincronice 1m, y como
+verificación corta, no como validación.
+**Criterios.** Cripto (desarrollo < 2025-07-01, costos F, 4 pares): S1–S3: >= 500 ops; I1–I2: >= 300 ops; R neta >= +0.05; PF >= 1.15; >= 4/5 años (2021–2025) positivos; >= 3/4 pares positivos. Quien pase se mide con S (> 0) y luego holdout una vez.
+FX (5m, desarrollo 2025-06 a 2025-12, costos FXo, 4 pares): >= 150 ops, R neta >= +0.05, PF >= 1.15, >= 3/4 pares positivos; luego FXr > 0; luego holdout (2026-01-01 en adelante) una vez.
+Pruebas: 3 (S1–S3) + 2 (I1–I2) en cripto, y las mismas en FX donde haya datos: se informa el número de pruebas; un aprobado marginal no cuenta como evidencia sólida.
+
+### Resultado del replanteo en cripto (desarrollo < 2025-07-01, 4 pares, RR 2.0; `research/mtf_test.py`)
+Costos optimistas (F) / realistas (S):
+
+| Estrategia | Ops | Gana % | R bruta | R neta (F) | PF (F) | Costo (R, F) | R neta (S) |
+|---|---|---|---|---|---|---|---|
+| S1 reversión (1m) | 38.354 | 22 | −0.53 | −1.75 | 0.12 | 1.22 | −4.45 |
+| S2 impulso EMA9/20 (1m) | 460.405 | 21 | −0.27 | −0.92 | 0.20 | 0.65 | −2.54 |
+| S3 ruptura micro-caja (1m) | 206.247 | 19 | −0.27 | −0.85 | 0.19 | 0.58 | −2.16 |
+| I1 barrido y rechazo (5m) | 5.897 | 35 | −0.04 | −0.23 | 0.70 | 0.19 | −0.66 |
+| I2 continuación (5m) | 29.690 | 34 | −0.07 | −0.33 | 0.62 | 0.26 | −0.93 |
+
+**Ninguna pasa**, 0/5 años y 0/4 pares en todas; holdout NO consumido. Lectura: con stops de micro-estructura de 1m (≈ 0.05–0.1% del precio) el costo de ida y vuelta
+equivale a 0.6–1.2 R incluso con costos de futuros; la tasa de acierto (19–22%) queda muy por debajo del 33% que exige un RR 2:1 aun sin costos. En 5m (I1, I2) el costo baja a 0.19–0.26 R,
+pero la R bruta sigue negativa (−0.04 / −0.07): no hay ventaja en la señal. La salida «sin momentum a los 3 min» cierra 23–45% de las operaciones de 1m y no cambia el signo.
+Pendiente FX (datos en el PC de Leo): `python research/mtf_test.py --suite intraday --fx --dir data_store/mt5 --symbols EURUSD GBPUSD USDJPY AUDUSD --cut 2026-01-01`
+(5m desde 2025-05-29: ~7 meses de desarrollo y ~9 de holdout; muestra corta). S1–S3 en FX requieren sincronizar 1m (`mt5-sync --intervals 1m`, ~2.5 meses).

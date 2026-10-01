@@ -28,12 +28,16 @@ def simulate(
     atr: np.ndarray,
     sl_mult: float,
     tp_mult: float,
-    max_hold: int = 24,
+    max_hold: int | np.ndarray = 24,
     costs: ScalpCosts = ScalpCosts(),  # noqa: B008
     start: pd.Timestamp | None = None,
     end: pd.Timestamp | None = None,
+    stall_bars: int | None = None,
 ) -> pd.DataFrame:
-    """`side[t]` en {-1, 0, 1} decidido al cierre de `t`; `atr[t]` en unidades de precio."""
+    """`side[t]` en {-1, 0, 1} decidido al cierre de `t`; `atr[t]` en unidades de precio (es la distancia
+    base: stop = sl_mult·atr[t]). `max_hold` puede ser un array por vela de señal (p. ej. para cerrar antes
+    del fin de la sesión). Con `stall_bars`, si al cierre de esa vela la operación no va en positivo y no
+    salió antes, se cierra al cierre de esa vela (sin momentum)."""
     idx = df.index
     o, h, lo, c = (df[k].to_numpy(dtype=float) for k in ("open", "high", "low", "close"))
     n = len(df)
@@ -52,7 +56,10 @@ def simulate(
             continue
         px = o[e] * (1 + s * costs.slip)
         stop, tp = px - s * d, px + s * tp_mult * atr[i]
-        last = min(e + max_hold, i1)  # velas e .. last-1
+        hold = int(max_hold if np.isscalar(max_hold) else max_hold[i])
+        if hold < 1:
+            continue
+        last = min(e + hold, i1)  # velas e .. last-1
         ol, hl, ll = o[e:last], h[e:last], lo[e:last]
         hit_stop = (ll <= stop) if s == 1 else (hl >= stop)
         hit_tp = (hl >= tp) if s == 1 else (ll <= tp)
@@ -69,6 +76,10 @@ def simulate(
         else:
             j = last - 1
             xp, reason = c[j] * (1 - s * costs.slip), "time"
+        if stall_bars:
+            js_ = e + stall_bars - 1  # ¿sin momentum al cierre de la vela `stall_bars`?
+            if (j > js_ or (j == js_ and reason == "time")) and s * (c[js_] - px) <= 0:
+                j, xp, reason = js_, c[js_] * (1 - s * costs.slip), "stall"
         gross = s * (xp - px) / px
         net = gross - 2 * costs.fee
         r_unit = d / px

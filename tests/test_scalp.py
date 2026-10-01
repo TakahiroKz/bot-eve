@@ -114,3 +114,20 @@ def test_breakout_volume_fires_only_with_volume_and_is_causal():
     df.loc[df.index[3560], "volume"] = 10.0
     side2, _ = breakout_volume(df, htf, "5m")
     assert side2[3560] == 1 and (side2 != 0).sum() == 1
+
+
+def test_stall_exit_when_no_momentum_and_hold_array():
+    rows = [FLAT, FLAT, FLAT, FLAT, (100, 100, 100, 100), (100, 110, 100, 110)]
+    t = run(rows, 0, tp=2.0)  # sin stall: llega al objetivo en la última vela
+    assert t.iloc[0].reason == "target"
+    df = bars(rows)
+    s = np.zeros(len(df), dtype=np.int8)
+    s[0] = 1
+    t2 = simulate(df, s, np.full(len(df), 2.0), 1.0, 2.0, 10, ZERO, stall_bars=3)
+    assert (
+        t2.iloc[0].reason == "stall" and t2.iloc[0].exit_time == df.index[3]
+    )  # cierre plano = sin ganancia
+    t3 = simulate(
+        df, s, np.full(len(df), 2.0), 1.0, 2.0, np.full(len(df), 2), ZERO
+    )  # límite de 2 velas
+    assert t3.iloc[0].reason == "time" and t3.iloc[0].exit_time == df.index[2]
