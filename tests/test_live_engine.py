@@ -458,3 +458,49 @@ def test_status_shows_error_count_while_the_connection_is_down(tmp_path):
     e.broker.fail_with = BrokerError("red")
     e.step(11)
     assert json.loads(e.store.status_path.read_text())["consecutive_errors"] == 1
+
+
+def test_position_limits_config_validation():
+    from pydantic import ValidationError
+
+    from bot_eve.common.config import StrategyConfig
+
+    ok = StrategyConfig(capital_fraction=0.6, position_cap=0.15, max_positions=4)
+    assert ok.max_positions == 4
+    with pytest.raises(ValidationError):
+        StrategyConfig(capital_fraction=0.5, position_cap=0.15, max_positions=4)  # 0.6 > 0.5
+    with pytest.raises(ValidationError):
+        StrategyConfig(capital_fraction=0.6, position_cap=0.15)  # falta max_positions
+
+
+def test_default_config_is_the_validated_variant():
+    from bot_eve.common.config import load_config
+
+    cfg = load_config("config/default.yaml")
+    sc = cfg.strategies["atr_breakout"]
+    assert (sc.position_cap, sc.max_positions, cfg.risk.risk_per_trade) == (0.15, 4, 0.005)
+    slots = build_slots(cfg)
+    assert len([s for s in slots if s.strategy_name == "atr_breakout"]) == 9
+    assert all(
+        s.capital_fraction == 0.15 and s.max_positions == 4
+        for s in slots
+        if s.strategy_name == "atr_breakout"
+    )
+
+
+def test_max_positions_blocks_extra_entries_of_same_strategy(tmp_path):
+    e = Env(tmp_path)
+    specs = [
+        SlotSpec(f"s|{sym}|15m", "scripted", e.strategy, sym, "15m", 0.5, max_positions=1)
+        for sym in ("BTCUSDT", "ETHUSDT")
+    ]
+    e.engine = LiveEngine(e.cfg, e.broker, e.store, specs)
+    e.step(10)
+    e.strategy.plan[e.candle(10)] = (BUY, 0.02, None)
+    e.step(11)
+    opened = [k for k, s in e.engine.state.slots.items() if s.position]
+    assert opened == ["s|BTCUSDT|15m"] and len(e.broker.fills) == 1  # la segunda se omite
+    specs[0].max_positions = specs[1].max_positions = 2  # con hueco, la segunda entra
+    e.strategy.plan[e.candle(11)] = (BUY, 0.02, None)
+    e.step(12)
+    assert [k for k, s in e.engine.state.slots.items() if s.position] == [s.key for s in specs]

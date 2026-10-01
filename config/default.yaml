@@ -33,7 +33,10 @@ strategies:
   atr_breakout:         # núcleo. Aprobó walk-forward 4h (docs/RESULTS_1H4H.md) y el holdout
     enabled: true
     stage: demo         # solo Binance Testnet; 'live' exige una decisión y validación aparte
-    capital_fraction: 0.75   # repartido entre los 3 pares (0.25 cada uno): lo que asume el backtest
+    capital_fraction: 0.60   # presupuesto total de la estrategia (= position_cap * max_positions)
+    position_cap: 0.15       # tope por posición, % del patrimonio (docs/CAPITAL_500.md §3.4)
+    max_positions: 4         # cartera con capital compartido: máximo 4 abiertas a la vez
+    symbols: [BTCUSDT, ETHUSDT, BNBUSDT, SOLUSDT, XRPUSDT, ADAUSDT, DOGEUSDT, LINKUSDT, AVAXUSDT]
     intervals: [4h]
     params: {entry_len: 40, exit_len: 20, stop_atr: 2.0}   # fijos: no se re-optimizan en vivo
   bollinger_reversion:  # candidata de tecnicasdetrading.com: solo backtest por ahora
@@ -57,7 +60,7 @@ execution:
   i_understand_real_money: false
 
 risk:
-  risk_per_trade: 0.01       # 1% del capital en riesgo hasta el stop
+  risk_per_trade: 0.005      # 0.5% del capital en riesgo hasta el stop (validado en §3.4)
   default_stop_pct: 0.03     # stop de emergencia si la estrategia no define uno
   stop_limit_buffer: 0.003
   max_daily_loss: 0.03       # 3% diario: al alcanzarlo no se abren más operaciones

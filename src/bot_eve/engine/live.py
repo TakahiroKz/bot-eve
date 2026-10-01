@@ -42,6 +42,7 @@ class SlotSpec:
     symbol: str
     interval: str
     capital_fraction: float
+    max_positions: int | None = None  # tope de posiciones simultáneas de la estrategia
 
 
 def build_slots(cfg: Config) -> list[SlotSpec]:
@@ -58,9 +59,12 @@ def build_slots(cfg: Config) -> list[SlotSpec]:
 def _slots_for(cfg: Config, name: str, sc: StrategyConfig) -> list[SlotSpec]:
     strategy = build_strategy(name, **sc.params)
     symbols = sc.symbols or cfg.data.symbols
-    share = sc.capital_fraction / (len(symbols) * len(sc.intervals))  # sin sobreasignar
+    if sc.position_cap is not None:  # tope por posición validado; el máximo lo aplica el motor
+        share = sc.position_cap
+    else:
+        share = sc.capital_fraction / (len(symbols) * len(sc.intervals))  # sin sobreasignar
     return [
-        SlotSpec(slot_key(name, sym, itv), name, strategy, sym, itv, share)
+        SlotSpec(slot_key(name, sym, itv), name, strategy, sym, itv, share, sc.max_positions)
         for sym in symbols
         for itv in sc.intervals
     ]
@@ -255,6 +259,16 @@ class LiveEngine:
                 log.info(
                     "%s: %s ya tiene posición en %s, se omite", spec.key, other.key, spec.symbol
                 )
+                return
+        if spec.max_positions is not None:
+            open_n = sum(
+                1
+                for other in self.slots
+                if other.strategy_name == spec.strategy_name
+                and self.state.slots[other.key].position
+            )
+            if open_n >= spec.max_positions:
+                log.info("%s: máximo de %d posiciones, se omite", spec.key, spec.max_positions)
                 return
         decision = self.risk.can_open(equity, self.state.day_start_equity)
         if not decision.ok:

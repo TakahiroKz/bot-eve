@@ -116,9 +116,22 @@ class StrategyConfig(BaseModel):
     enabled: bool = False  # si participa en el bot (demo/live); en backtest siempre se puede usar
     stage: Literal["backtest", "demo", "live"] = "backtest"  # etapa máxima autorizada
     capital_fraction: float = Field(0.0, ge=0, le=1)  # parte del capital asignada en vivo
+    # Opcionales: tope por posición (fracción del patrimonio) y máximo de posiciones simultáneas de esta
+    # estrategia. Sin `position_cap`, capital_fraction se reparte a partes iguales entre los slots.
+    position_cap: float | None = Field(None, gt=0, le=1)
+    max_positions: int | None = Field(None, ge=1)
     symbols: list[str] | None = None  # None = todos los de `data.symbols`
     intervals: list[str] = Field(default_factory=lambda: ["15m"])
     params: dict = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _check_position_limits(self) -> StrategyConfig:
+        if self.position_cap is not None:
+            if self.max_positions is None:
+                raise ValueError("position_cap requiere max_positions")
+            if self.position_cap * self.max_positions > self.capital_fraction + 1e-9:
+                raise ValueError("position_cap * max_positions excede capital_fraction")
+        return self
 
     def allowed_in(self, mode: str) -> bool:
         """¿Puede operar en `mode`? Requiere estar activada y haber alcanzado esa etapa."""

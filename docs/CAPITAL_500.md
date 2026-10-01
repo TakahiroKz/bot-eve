@@ -102,6 +102,27 @@ separado porque en el desarrollo incluye el mercado alcista; NO son cifras para 
 reservaba si el desarrollo pasaba: A +2.8% CAGR (PF 1.09, caída −25%), B +6.6% CAGR (PF 1.09, caída −40.6%). Ya no es una evaluación
 limpia; no se usa para aprobar nada. Como era de esperar, el mercado reciente rinde mucho menos que el histórico.
 
+### 3.4 Variante de menor riesgo (segunda hipótesis, pre-registro escrito ANTES de ejecutar)
+Tras fallar §3.3 por la caída máxima, se prueba UNA variante: riesgo 0.5% por operación, tope 15% por posición, `max_positions = 4`,
+universo B vs A con los mismos parámetros. Es una segunda hipótesis sobre los mismos datos: no se prueban más variantes si falla.
+Criterios en desarrollo (antes de 2025-07-01), para B: (1) caída máx. mejor que −25%; (2) PF >= 1.3; (3) >= 150 ops; (4) CAGR de B > CAGR de A
+con los mismos parámetros. Holdout (una vez): retorno > 0 y PF > 1. Aviso: el holdout de B (con riesgo 1%) ya fue visto (§3.3), así que no es limpio.
+Si pasa, se activa en la demo con `max_positions`; si no, el universo queda en A y se cierra el tema.
+
+**Resultado §3.4 (`research/portfolio_test_v2.py`, riesgo 0.5%, tope 15%, máx. 4 posiciones):**
+
+| | Ops | CAGR | Caída máx. | PF | Ops/mes |
+|---|---|---|---|---|---|
+| Desarrollo A (3 pares) | 323 | +20.7% | −20.1% | 1.89 | 4.9 |
+| **Desarrollo B (9 pares)** | 595 | +53.0% | −23.8% | 2.01 | 9.0 |
+| Holdout A | 75 | +2.5% | −15.4% | 1.14 | 5.0 |
+| **Holdout B** | 141 | +7.1% | −24.6% | 1.18 | 9.4 |
+
+Los 4 criterios de desarrollo pasan (la caída −23.8% por poco) y el holdout pasa (retorno +9.0% en 15 meses, PF 1.18). **Veredicto pre-registrado: APRUEBA
+el universo B con riesgo 0.5% / tope 15% / 4 posiciones.** Cautelas: holdout no limpio (se vio con riesgo 1%), sesgo de supervivencia, desarrollo
+dominado por 2020-21, la caída máx. en holdout ya roza −25%, y el retorno reciente es modesto (≈ +7% anual). Es una segunda hipótesis sobre los
+mismos datos: no se prueban más variantes.
+
 ## 3.2 Interés compuesto o plano
 El bot **reinvierte** (compuesto): el tamaño de cada posición sale del capital **actual** (riesgo 1% del capital actual, tope 25% del
 capital actual). Tras pérdidas las posiciones se reducen solas; tras ganancias crecen. Simulación 500 USD, 6.7 años, 3 pares:
