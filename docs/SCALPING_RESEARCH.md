@@ -228,3 +228,14 @@ equivalente exacto para un par de divisas). Costos por lado: FXo = slippage 0.00
 Desarrollo: < 2026-01-01; holdout: desde 2026-01-01 (reservado en config/mt5_fx.yaml; nunca visto).
 Criterios (por variante, costos FXr, desarrollo): >= 150 operaciones; CAGR > 0; PF >= 1.15; caída máxima mejor que −25%; >= 3/4 pares con retorno positivo (por trade medio). Luego holdout UNA vez: retorno > 0 y PF > 1.
 2 variantes = 2 pruebas. Limitaciones declaradas: sin spread histórico real (provisional), swap por par desconocido, cortos y apalancamiento requieren cuenta CFD (Libertex), un par y su inverso podrían abrirse a la vez en B (se informa).
+
+### Resultado `atr_breakout` 4h en FX (PC de Leo; EURUSD, GBPUSD, USDJPY, AUDUSD; desarrollo < 2026-01-01; riesgo 0.5%, margen 10×)
+| Variante | Costos | Ops | Gana % | CAGR | Caída máx. | PF | Retorno | Pares + |
+|---|---|---|---|---|---|---|---|---|
+| A solo largos | FXo | 380 | 27 | −2.0% | −19.0% | 0.91 | −11.2% | 1/4 |
+| B largos+cortos | FXo | 753 | 27 | −7.8% | −47.5% | 0.82 | −38.6% | 1/4 |
+| A solo largos | FXr | 380 | 26 | −4.1% | −28.3% | 0.81 | −22.0% | 1/4 |
+| B largos+cortos | FXr | 753 | 26 | −11.4% | −57.9% | 0.75 | −51.7% | 0/4 |
+**No pasa** (pierde incluso con costos optimistas). **La ruptura de 4h NO generaliza a FX majors**: en cripto la ventaja viene de colas gruesas y tendencias largas (gana 33% con ganancias de ~5×
+la pérdida); en divisas, de baja volatilidad y reversión frecuente, las rupturas fallan más (acierto 26–27%) y las ganancias no compensan. Holdout (2026-01-01 en adelante) NO consumido.
+Consecuencia para el plan: **la cuenta Libertex no tiene base cuantitativa para operar FX con esta estrategia**. Lo único validado es cripto (4h); en MT5 solo sirve BTCUSD/ETHUSD CFD (con spread y swap propios, ya medidos en docs/MT5_LIBERTEX.md).
