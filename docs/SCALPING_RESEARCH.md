@@ -210,3 +210,12 @@ Desarrollo (< 2025-07-01, 4 pares), costos F / S:
 **Análisis posterior (informativo, NO pre-registrado, no se usa para aprobar):** desarrollo largos +0.16 R (437 ops) / cortos +0.10 R (186); holdout largos **+0.175 R** (71 ops) / cortos **−0.149 R** (83 ops):
 el aporte positivo reciente es de los largos; los cortos (que exigirían futuros/CFD) destruyen el resultado. Es una hipótesis para una prueba nueva (largos solamente), no un hallazgo.
 Pendiente: confirmar en FX (`python research/breakout_htf_test.py --fx --dir data_store/mt5 --symbols EURUSD GBPUSD USDJPY AUDUSD --cut 2026-01-01`) por coherencia entre mercados.
+
+### Resultado ruptura con volumen en FX (PC de Leo; desarrollo < 2026-01-01; EURUSD, GBPUSD, USDJPY, AUDUSD; costos FXo / FXr)
+| Marco | Ops | R bruta | R neta (FXo) | PF | Años + | Pares + | R neta (FXr) |
+|---|---|---|---|---|---|---|---|
+| 1h | 1.551 | +0.039 | +0.039 | 1.06 | 3/5 | 2/4 | +0.021 |
+| 2h | 631 | −0.044 | −0.044 | 0.93 | 2/5 | 2/4 | −0.056 |
+| 4h | 261 | +0.024 | +0.024 | 1.04 | 2/5 | 3/4 | +0.019 |
+**Ninguno pasa** (R neta < +0.05, PF < 1.15, años positivos < 4/5). La señal bruta existe a 1h y 4h pero es mínima (+0.02 a +0.04 R). No hay coherencia entre cripto (4h: +0.19 R) y FX (4h: +0.02 R) y el
+holdout de cripto 4h dio equilibrio, así que **la línea de ruptura con volumen queda cerrada**. Una prueba de «solo largos» en cripto sería una hipótesis nueva sobre un holdout ya consumido: no se hace sin datos frescos (forward en demo).
