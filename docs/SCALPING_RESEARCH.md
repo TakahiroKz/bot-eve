@@ -180,3 +180,12 @@ equivale a 0.6–1.2 R incluso con costos de futuros; la tasa de acierto (19–2
 pero la R bruta sigue negativa (−0.04 / −0.07): no hay ventaja en la señal. La salida «sin momentum a los 3 min» cierra 23–45% de las operaciones de 1m y no cambia el signo.
 Pendiente FX (datos en el PC de Leo): `python research/mtf_test.py --suite intraday --fx --dir data_store/mt5 --symbols EURUSD GBPUSD USDJPY AUDUSD --cut 2026-01-01`
 (5m desde 2025-05-29: ~7 meses de desarrollo y ~9 de holdout; muestra corta). S1–S3 en FX requieren sincronizar 1m (`mt5-sync --intervals 1m`, ~2.5 meses).
+
+### Resultado intradía en FX (PC de Leo, 5m desde 2025-05-29; desarrollo 2025-06 a 2025-12, 4 pares; costos FXo = 0.002%/lado, FXr = 0.005%/lado)
+| Estrategia | Ops | Gana % | R neta (FXo) | PF (FXo) | Pares + | R neta (FXr) | PF (FXr) |
+|---|---|---|---|---|---|---|---|
+| I1 barrido y rechazo | 431 | 33 | −0.092 | 0.86 | 1/4 | −0.205 | 0.72 |
+| I2 continuación | 1.979 | 34 | −0.061 | 0.91 | 1/4 | −0.180 | 0.76 |
+**No pasa** (R neta negativa incluso con costos optimistas). Nota de lectura: la columna «costo_R» sale 0 porque en FX no hay comisión y el spread/slippage ya está dentro del precio de entrada y
+salida, es decir, dentro de la R «bruta»; el costo no es cero, solo no se muestra por separado. Con costos casi nulos la R bruta sigue negativa: **no hay ventaja en la señal**, lo mismo que en cripto.
+Muestra corta (7 meses de desarrollo): es un indicio, no una prueba; pero coincide con cripto (5/5 pruebas intradía negativas). Holdout (2026-01-01 en adelante) NO consumido.
