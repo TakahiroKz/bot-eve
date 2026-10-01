@@ -40,5 +40,10 @@ caída máxima histórica −24%, 7% anual en el tramo reciente. **Las primeras 
 5. Capital que puedes perder sin cambiar tu vida (500 USD de riesgo total) y la regla de parada escrita: caída del 25% o 3 meses sin cumplir lo esperado → se detiene y se revisa.
 6. Doble confirmación del código para live (`i_understand_real_money` + `--yes-real-money`) y KILL probado.
 
+## E2. Cortes de conexión (internet/PC dormido)
+- Una caída de red o un timeout NO cierra posiciones ni activa el kill switch: el bot avisa (⚠️), reintenta cada ~20 s y avisa de nuevo si pasan 30 min (🔴). Los stops siguen en el exchange.
+- Solo los errores que no son de conexión (rechazos, datos inválidos) cuentan hacia el kill switch (5 seguidos).
+- Tras un corte largo revisa que `status` coincida con el exchange (posiciones y stops) antes de seguir.
+
 ## F. Cuándo parar y avisarme
 - Posición sin stop, orden duplicada, saldo que no cuadra con el estado, errores repetidos, caída > 15% en < 4 semanas, o cualquier comportamiento que no entiendas: `python -m bot_eve.engine kill`, no abrir nada a mano y pegarme el `status` y las últimas líneas del log.

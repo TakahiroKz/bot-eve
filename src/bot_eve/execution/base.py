@@ -14,6 +14,14 @@ class BrokerError(Exception):
     """Fallo al hablar con el broker (red, rechazo de orden, datos inválidos)."""
 
 
+class BrokerConnectionError(BrokerError):
+    """Pérdida transitoria de conexión (timeout, red caída, servicio no disponible, límite de peticiones).
+
+    No indica que algo esté mal con la cuenta ni con las órdenes: los stops siguen en el exchange. El motor
+    reintenta sin cerrar posiciones por esta causa.
+    """
+
+
 @dataclass(frozen=True)
 class Fill:
     symbol: str

@@ -10,6 +10,7 @@ saldo bloqueado por dos órdenes.
 from __future__ import annotations
 
 import logging
+import re
 import time
 from collections.abc import Callable
 
@@ -18,7 +19,14 @@ import pandas as pd
 
 from bot_eve.backtest.costs import SymbolRules
 from bot_eve.data.intervals import to_timedelta
-from bot_eve.execution.base import Broker, BrokerError, Fill, OrderInfo, _quote_of
+from bot_eve.execution.base import (
+    Broker,
+    BrokerConnectionError,
+    BrokerError,
+    Fill,
+    OrderInfo,
+    _quote_of,
+)
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +39,13 @@ def to_ccxt_symbol(symbol: str) -> str:
     if not quote:
         raise BrokerError(f"No se reconoce el activo de cotización de {symbol}")
     return f"{symbol[: -len(quote)]}/{quote}"
+
+
+def _broker_error(exc: ccxt.BaseError) -> BrokerError:
+    """Traduce el error de ccxt. Las caídas de red son transitorias; la URL (con firma) no se registra."""
+    msg = re.sub(r"\?\S+", "?…", f"{type(exc).__name__}: {exc}")
+    cls = BrokerConnectionError if isinstance(exc, ccxt.NetworkError) else BrokerError
+    return cls(msg)
 
 
 class BinanceBroker(Broker):
@@ -76,7 +91,7 @@ class BinanceBroker(Broker):
         try:
             return fn(*args, **kwargs)
         except ccxt.BaseError as exc:
-            raise BrokerError(f"{type(exc).__name__}: {exc}") from exc
+            raise _broker_error(exc) from exc
 
     # --- interfaz Broker -----------------------------------------------------------------
     def now(self) -> pd.Timestamp:
@@ -170,7 +185,7 @@ class BinanceBroker(Broker):
         except ccxt.OrderNotFound:
             return OrderInfo(order_id, "unknown")
         except ccxt.BaseError as exc:
-            raise BrokerError(f"{type(exc).__name__}: {exc}") from exc
+            raise _broker_error(exc) from exc
         quote = _quote_of(symbol)
         fee = order.get("fee") or {}
         return OrderInfo(
@@ -188,4 +203,4 @@ class BinanceBroker(Broker):
         except ccxt.OrderNotFound:
             return  # ya ejecutada o cancelada
         except ccxt.BaseError as exc:
-            raise BrokerError(f"{type(exc).__name__}: {exc}") from exc
+            raise _broker_error(exc) from exc

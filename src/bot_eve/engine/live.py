@@ -21,7 +21,7 @@ import pandas as pd
 from bot_eve.common.config import Config, StrategyConfig
 from bot_eve.data.intervals import to_timedelta
 from bot_eve.engine.state import Position, Slot, State, StateStore, slot_key
-from bot_eve.execution.base import Broker, BrokerError, fee_in_quote
+from bot_eve.execution.base import Broker, BrokerConnectionError, BrokerError, fee_in_quote
 from bot_eve.notify import Notifier, NullNotifier
 from bot_eve.risk.manager import RiskManager
 from bot_eve.strategies import build_strategy
@@ -84,6 +84,8 @@ class LiveEngine:
         self.notifier = notifier or NullNotifier()
         self.label = label or f"{broker.name} {cfg.execution.mode}"
         self._limit_alert_day = ""
+        self._outage_since: pd.Timestamp | None = None  # inicio de la caída de conexión en curso
+        self._outage_alerted = False
         self._last_equity: float | None = None
         self.risk = RiskManager(cfg.risk, store.kill_path)
         self.quote = cfg.execution.quote_asset
@@ -198,7 +200,12 @@ class LiveEngine:
             for spec in self.slots:
                 self._process(spec, equity, now)
             self.state.consecutive_errors = 0
+            if self._outage_since is not None:
+                self._say("✅ Conexión con el broker restablecida.")
+                self._outage_since, self._outage_alerted = None, False
             self._after_step(equity, now)
+        except BrokerConnectionError as exc:
+            self._on_outage(exc, now)
         except BrokerError as exc:
             self.state.consecutive_errors += 1
             log.error("Error de broker (%d seguidos): %s", self.state.consecutive_errors, exc)
@@ -218,6 +225,23 @@ class LiveEngine:
                 raise KillSwitch("demasiados errores seguidos") from exc
         finally:
             self.store.save(self.state)
+
+    def _on_outage(self, exc: Exception, now: pd.Timestamp) -> None:
+        """Caída de conexión: se reintenta sin cerrar nada (los stops viven en el exchange).
+        No cuenta para el kill switch; se avisa al inicio y de nuevo si dura más de 30 minutos."""
+        if self._outage_since is None:
+            self._outage_since = now
+            log.warning("Sin conexión con el broker (se reintenta): %s", exc)
+            self._say(
+                f"⚠️ Sin conexión con el broker: {type(exc).__name__}. Los stops siguen en el exchange; se reintenta."
+            )
+        elif not self._outage_alerted and now - self._outage_since > pd.Timedelta(minutes=30):
+            self._outage_alerted = True
+            log.error("Sin conexión con el broker desde hace más de 30 minutos")
+            self._say(
+                "🔴 Más de 30 min sin conexión con el broker. Revisa internet/PC; los stops siguen en el exchange.",
+                True,
+            )
 
     def _process(self, spec: SlotSpec, equity: float, now: pd.Timestamp) -> None:
         slot = self.state.slots[spec.key]

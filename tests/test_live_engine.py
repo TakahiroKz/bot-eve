@@ -504,3 +504,47 @@ def test_max_positions_blocks_extra_entries_of_same_strategy(tmp_path):
     e.strategy.plan[e.candle(11)] = (BUY, 0.02, None)
     e.step(12)
     assert [k for k, s in e.engine.state.slots.items() if s.position] == [s.key for s in specs]
+
+
+def test_connection_outage_never_triggers_kill_switch_or_flattens(tmp_path):
+    from bot_eve.execution.base import BrokerConnectionError
+
+    e = Env(tmp_path, max_consecutive_errors=3)
+    e.step(10)
+    e.strategy.plan[e.candle(10)] = (BUY, 0.02, None)
+    e.step(11)
+    assert e.position is not None
+    for _ in range(10):  # mucho más que max_consecutive_errors
+        e.broker.fail_with = BrokerConnectionError("NetworkError: timeout")
+        e.step(11)
+    assert e.engine.state.consecutive_errors == 0 and e.position is not None  # no se cerró nada
+    e.step(11)  # vuelve la conexión
+    assert e.engine._outage_since is None and e.position is not None
+    # un error que NO es de conexión sigue activando el kill switch
+    with pytest.raises(KillSwitch):
+        for _ in range(3):
+            e.broker.fail_with = BrokerError("rechazo")
+            e.step(11)
+
+
+def test_binance_network_errors_are_transient_and_do_not_log_signed_urls():
+    import ccxt
+
+    from bot_eve.execution.base import BrokerConnectionError
+    from bot_eve.execution.binance import BinanceBroker
+
+    def boom(*_a, **_k):
+        raise ccxt.RequestTimeout(
+            "binance GET https://testnet.binance.vision/api/v3/account?timestamp=1&signature=abc123"
+        )
+
+    with pytest.raises(BrokerConnectionError) as ei:
+        BinanceBroker._call(boom)
+    assert "abc123" not in str(ei.value) and "RequestTimeout" in str(ei.value)
+
+    def rejected(*_a, **_k):
+        raise ccxt.InsufficientFunds("binance saldo insuficiente")
+
+    with pytest.raises(BrokerError) as ei2:
+        BinanceBroker._call(rejected)
+    assert not isinstance(ei2.value, BrokerConnectionError)
