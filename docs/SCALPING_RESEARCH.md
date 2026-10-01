@@ -189,3 +189,24 @@ Pendiente FX (datos en el PC de Leo): `python research/mtf_test.py --suite intra
 **No pasa** (R neta negativa incluso con costos optimistas). Nota de lectura: la columna «costo_R» sale 0 porque en FX no hay comisión y el spread/slippage ya está dentro del precio de entrada y
 salida, es decir, dentro de la R «bruta»; el costo no es cero, solo no se muestra por separado. Con costos casi nulos la R bruta sigue negativa: **no hay ventaja en la señal**, lo mismo que en cripto.
 Muestra corta (7 meses de desarrollo): es un indicio, no una prueba; pero coincide con cripto (5/5 pruebas intradía negativas). Holdout (2026-01-01 en adelante) NO consumido.
+
+## Ruptura con volumen (C) en 2h y 4h — pre-registro (escrito ANTES de ejecutar)
+Hipótesis nueva (la señal bruta de C en 1h fue +0.10 R, 5/5 años, 4/4 pares, pero no cubrió costos): con marcos más largos el costo en R baja. Misma estrategia C sin cambios
+(cierre > máximo / < mínimo de las 48 velas previas, volumen > 1.5× el promedio de 20, tendencia del marco de contexto EMA50/EMA200 a favor; stop 1.5×ATR14, objetivo 3×ATR, salida por tiempo a 24 velas).
+Marcos de entrada: **2h** (remuestreado de 1h, solo velas completas) y **4h**; contexto: **1d** (remuestreado de 1h) para ambos. Referencia (ya medida, 1h con contexto 4h): R neta F +0.044.
+Cripto (BTC, ETH, BNB, SOL; desarrollo < 2025-07-01; costos F/S como siempre) y FX (EURUSD, GBPUSD, USDJPY, AUDUSD en el PC de Leo; 1h desde 2020; desarrollo < 2026-01-01; costos FXo/FXr).
+Criterios (por marco, costos optimistas): >= 300 ops, R neta >= +0.05, PF >= 1.15, >= 4/5 años (2021–2025) positivos, >= 3/4 pares positivos; luego costos realistas > 0; luego holdout UNA vez.
+Son 2 marcos × 2 mercados = 4 pruebas (más la referencia 1h) sobre datos ya vistos en parte; si exactamente una pasa por margen mínimo no se considera evidencia sólida, y se exigiría coherencia entre cripto y FX.
+
+### Resultado ruptura con volumen 2h/4h en cripto (`research/breakout_htf_test.py`)
+Desarrollo (< 2025-07-01, 4 pares), costos F / S:
+| Marco | Ops | Gana % | R bruta | R neta (F) | PF (F) | Años + | Pares + | R neta (S) |
+|---|---|---|---|---|---|---|---|---|
+| 1h (ref.) | 2.734 | 39 | +0.10 | +0.044 | 1.07 | 5/5 | 4/4 | −0.070 |
+| 2h | 1.202 | 39 | +0.10 | +0.060 | 1.10 | 4/5 | 3/4 | −0.022 |
+| **4h** | 624 | 43 | +0.22 | **+0.192** | **1.33** | 5/5 | 4/4 | **+0.141** |
+2h no pasa (PF 1.10 < 1.15). **4h pasa los criterios de desarrollo y sigue positivo con costos S**, así que se evaluó el holdout (una sola vez, costos S, 154 ops):
+**R bruta +0.089, R neta +0.001, PF 1.00, pares + 3/4** → **expectativa ≈ 0: no aprueba** (hay que cubrir costos con margen; un 0.001 R no es evidencia). El edge bruto cae de +0.21 R (desarrollo) a +0.09 R (reciente), como el 4h ya validado.
+**Análisis posterior (informativo, NO pre-registrado, no se usa para aprobar):** desarrollo largos +0.16 R (437 ops) / cortos +0.10 R (186); holdout largos **+0.175 R** (71 ops) / cortos **−0.149 R** (83 ops):
+el aporte positivo reciente es de los largos; los cortos (que exigirían futuros/CFD) destruyen el resultado. Es una hipótesis para una prueba nueva (largos solamente), no un hallazgo.
+Pendiente: confirmar en FX (`python research/breakout_htf_test.py --fx --dir data_store/mt5 --symbols EURUSD GBPUSD USDJPY AUDUSD --cut 2026-01-01`) por coherencia entre mercados.
