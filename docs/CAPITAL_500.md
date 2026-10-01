@@ -123,6 +123,17 @@ el universo B con riesgo 0.5% / tope 15% / 4 posiciones.** Cautelas: holdout no 
 dominado por 2020-21, la caída máx. en holdout ya roza −25%, y el retorno reciente es modesto (≈ +7% anual). Es una segunda hipótesis sobre los
 mismos datos: no se prueban más variantes.
 
+### 3.5 Niveles de riesgo más agresivos (informativo, `research/portfolio_risk_levels.py`; 9 pares, 4 posiciones, 500 USD)
+| Nivel (riesgo / tope) | Dev CAGR | Dev caída máx. | Dev PF | Holdout ret. | Holdout caída | Peor año | Mejor año |
+|---|---|---|---|---|---|---|---|
+| 0.5% / 15% (base) | +53% | −23.8% | 2.01 | +9.0% | −24.6% | −14% | +141% |
+| 1% / 25% | +94% | −41.3% | 1.70 | +8.3% | −40.6% | −26% | +382% |
+| 2% / 40% | +79% | −63.9% | 1.31 | +5.9% | −49.2% | −47% | +680% |
+| 3% / 50% | +61% | −71.9% | 1.18 | −10.5% | −54.4% | −55% | +607% |
+Subir el riesgo por encima de ~1% NO mejora el crecimiento: el CAGR baja (la caída profunda obliga a recuperar mucho más) y el holdout se vuelve
+negativo con 3%. Es la «lastra de volatilidad»; el óptimo está cerca de 1% y con 0.5% se duerme mucho mejor. Las cifras de «500 USD hoy» son
+irreales (mercado alcista 2020-21). Ningún nivel agresivo se activa.
+
 ## 3.2 Interés compuesto o plano
 El bot **reinvierte** (compuesto): el tamaño de cada posición sale del capital **actual** (riesgo 1% del capital actual, tope 25% del
 capital actual). Tras pérdidas las posiciones se reducen solas; tras ganancias crecen. Simulación 500 USD, 6.7 años, 3 pares:
