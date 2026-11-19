@@ -1,7 +1,7 @@
 # Nerova · Chaquetas de cuero
 
 Tienda propia (Next.js + Postgres) para Colombia: catálogo, inventario por talla, carrito, checkout, pagos y panel de administración.
-Plan: [`PLAN.md`](PLAN.md) · Pendientes y decisiones abiertas: [`PENDIENTES.md`](PENDIENTES.md).
+Plan: [`PLAN.md`](PLAN.md) · Pendientes: [`PENDIENTES.md`](PENDIENTES.md) · **Contexto completo del proyecto: [`docs/CONTEXTO.md`](docs/CONTEXTO.md)** · Despliegue: [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md) · Correo: [`docs/CORREO.md`](docs/CORREO.md).
 
 ## Desarrollo
 ```bash
