@@ -3,7 +3,8 @@
 import { redirect } from "next/navigation";
 import { addToCart, readCart, writeCart } from "@/lib/cart";
 import { getDb } from "@/lib/db";
-import { confirmPayment, createOrder, OrderError, setOrderStatus, type Customer } from "@/lib/orders";
+import { confirmPaymentAndNotify } from "@/lib/notifications";
+import { createOrder, OrderError, setOrderStatus, type Customer } from "@/lib/orders";
 import { getProvider } from "@/lib/payments";
 import { getSettings } from "@/lib/settings";
 
@@ -62,7 +63,7 @@ export async function simulatePaymentAction(formData: FormData) {
   if (getProvider().name !== "simulated") throw new Error("No disponible");
   const code = str(formData, "code");
   const db = await getDb();
-  if (str(formData, "result") === "approve") await confirmPayment(db, code, `SIM-${Date.now()}`);
+  if (str(formData, "result") === "approve") await confirmPaymentAndNotify(db, code, `SIM-${Date.now()}`);
   else await setOrderStatus(db, code, "cancelled").catch(() => undefined);
   redirect(`/pedido/${encodeURIComponent(code)}`);
 }

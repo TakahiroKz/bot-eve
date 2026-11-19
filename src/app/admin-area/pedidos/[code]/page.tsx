@@ -4,7 +4,7 @@ import { adminUrl, requireAdmin } from "@/lib/admin";
 import { getDb } from "@/lib/db";
 import { nextStatuses, STATUS_LABEL } from "@/lib/orders";
 import { formatCop } from "@/lib/pricing";
-import { setStatusAction } from "../../actions";
+import { resendConfirmationAction, setStatusAction } from "../../actions";
 
 type Props = { params: Promise<{ code: string }>; searchParams: Promise<{ error?: string; ok?: string }> };
 
@@ -16,7 +16,7 @@ export default async function OrderDetail({ params, searchParams }: Props) {
   const [o] = await db.query<{
     id: number; code: string; status: string; customer_name: string; email: string; phone: string; department: string; city: string;
     address: string; notes: string; subtotal: number; shipping: number; total: number; payment_provider: string; payment_ref: string;
-    created_at: string; paid_at: string | null;
+    created_at: string; paid_at: string | null; confirmation_sent_at: string | null;
   }>("SELECT * FROM orders WHERE code = $1", [code]);
   if (!o) notFound();
   const items = await db.query<{ product_name: string; size: string; unit_price: number; qty: number }>(
@@ -34,6 +34,15 @@ export default async function OrderDetail({ params, searchParams }: Props) {
           <p>{o.customer_name}<br />{o.address}, {o.city}, {o.department}<br />{o.phone} · {o.email}</p>
           {o.notes && <p className="notice">{o.notes}</p>}
           <p className="muted">Pasarela: {o.payment_provider || "—"} · Ref.: {o.payment_ref || "—"}</p>
+          {["paid", "shipped", "delivered"].includes(o.status) && (
+            <form action={resendConfirmationAction} style={{ margin: "1rem 0" }}>
+              <input type="hidden" name="code" value={o.code} />
+              <span className="muted">
+                Correo de confirmación: {o.confirmation_sent_at ? `enviado ${new Date(o.confirmation_sent_at).toLocaleString("es-CO", { timeZone: "America/Bogota" })}` : "NO enviado"}{" "}
+              </span>
+              <button className="btn small ghost" type="submit">{o.confirmation_sent_at ? "Reenviar" : "Enviar ahora"}</button>
+            </form>
+          )}
           <h2 style={{ fontSize: "1.1rem" }}>Cambiar estado</h2>
           <div style={{ display: "flex", gap: ".6rem", flexWrap: "wrap" }}>
             {nextStatuses(o.status).map((st) => (

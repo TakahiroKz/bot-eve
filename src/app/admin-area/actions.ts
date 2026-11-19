@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { ADMIN_COOKIE, ADMIN_TTL_MS, adminUrl, requireAdmin } from "@/lib/admin";
 import { loginBlocked, loginFailed, loginOk, signSession, verifyPassword, verifyTotp } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { sendOrderEmails } from "@/lib/notifications";
 import { OrderError, setOrderStatus } from "@/lib/orders";
 import { safeUrl, saveSettings } from "@/lib/settings";
 
@@ -106,4 +107,11 @@ export async function saveSettingsAction(formData: FormData) {
     youtube: social("youtube"), x: social("x"),
   });
   back("/ajustes", { ok: "Ajustes guardados." });
+}
+
+export async function resendConfirmationAction(formData: FormData) {
+  await requireAdmin();
+  const code = str(formData, "code", 20);
+  const ok = await sendOrderEmails(await getDb(), code, { force: true });
+  back(`/pedidos/${encodeURIComponent(code)}`, ok ? { ok: "Confirmación reenviada al cliente." } : { error: "No se pudo enviar el correo. Revisa la configuración de correo." });
 }

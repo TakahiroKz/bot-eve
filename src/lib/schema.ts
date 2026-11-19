@@ -47,7 +47,8 @@ CREATE TABLE IF NOT EXISTS orders (
   payment_ref text NOT NULL DEFAULT '',
   reserved_until timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
-  paid_at timestamptz
+  paid_at timestamptz,
+  confirmation_sent_at timestamptz
 );
 CREATE TABLE IF NOT EXISTS order_items (
   id serial PRIMARY KEY,
@@ -58,6 +59,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   unit_price integer NOT NULL,
   qty integer NOT NULL CHECK (qty > 0)
 );
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS confirmation_sent_at timestamptz;
 CREATE INDEX IF NOT EXISTS order_items_variant ON order_items(variant_id);
 CREATE INDEX IF NOT EXISTS orders_status ON orders(status, reserved_until);
 `;

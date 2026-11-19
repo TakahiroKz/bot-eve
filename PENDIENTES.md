@@ -22,5 +22,6 @@
 ## Configuración de producción
 - [ ] `DATABASE_URL` (Postgres), `ADMIN_PATH` (URL secreta del panel), `ADMIN_PASSWORD_HASH` (`npm run admin:hash`), `ADMIN_TOTP_SECRET`, `SESSION_SECRET`.
 - [ ] Tarifa de envío definitiva (hoy 15.000 COP), umbral de envío gratis (2 prendas) y días de entrega (3): editables en el panel.
-- [ ] Correo transaccional (confirmación de pedido) — no implementado todavía.
+- [x] Correo de confirmación de pedido: implementado (cliente + aviso al dueño, reenvío desde el panel). Falta **configurarlo con tu dominio**: ver `docs/CORREO.md` (Cloudflare Email Routing para recibir, Resend o Brevo para enviar).
+- [ ] Correo «tu pedido va en camino» al marcar como enviado (aún no implementado).
 - [ ] Copias de seguridad de la base de datos y analítica.
