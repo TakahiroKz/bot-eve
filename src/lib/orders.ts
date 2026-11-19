@@ -30,12 +30,19 @@ export function newOrderCode(): string {
   return s;
 }
 
+const EMAIL_RE = /^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*\.[A-Za-z]{2,}$/;
+const CONTROL_CHARS = /[\u0000-\u001f\u007f]/; // saltos de línea y otros caracteres de control (inyección en cabeceras de correo)
+
 export function validateCustomer(c: Customer): string | null {
-  if (c.name.trim().length < 3) return "Escribe tu nombre completo.";
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email.trim())) return "Escribe un correo válido.";
+  const email = c.email.trim();
+  if (c.name.trim().length < 3 || c.name.length > 120) return "Escribe tu nombre completo.";
+  if (email.length > 254 || !EMAIL_RE.test(email)) return "Escribe un correo válido.";
   if (!/^\+?\d[\d\s-]{6,14}$/.test(c.phone.trim())) return "Escribe un teléfono válido.";
   if (c.department.trim().length < 3 || c.city.trim().length < 2) return "Indica departamento y ciudad.";
   if (c.address.trim().length < 6) return "Escribe una dirección de entrega completa.";
+  if ([c.name, c.email, c.phone, c.department, c.city, c.address].some((v) => CONTROL_CHARS.test(v))) {
+    return "Hay caracteres no permitidos en el formulario.";
+  }
   return null;
 }
 
@@ -125,7 +132,7 @@ export async function confirmPayment(db: Db, code: string, paymentRef: string): 
     if (!o) return "missing";
     if (["paid", "shipped", "delivered"].includes(o.status)) return "already";
     const items = await q<{ variant_id: number; qty: number }>("SELECT variant_id, qty FROM order_items WHERE order_id = $1", [o.id]);
-    let alert = "";
+    let alert = o.status === "cancelled" ? " [ALERTA: pago recibido sobre un pedido cancelado; revisar o reembolsar]" : "";
     for (const it of items) {
       const [v] = await q<{ stock: number }>("SELECT stock FROM variants WHERE id = $1 FOR UPDATE", [it.variant_id]);
       if (v.stock < it.qty) alert = " [ALERTA: pago recibido sin stock suficiente; revisar o reembolsar]";

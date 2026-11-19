@@ -1,9 +1,12 @@
 "use server";
 
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ADMIN_COOKIE, ADMIN_TTL_MS, adminUrl, requireAdmin } from "@/lib/admin";
-import { loginBlocked, loginFailed, loginOk, signSession, verifyPassword, verifyTotp } from "@/lib/auth";
+import { ADMIN_COOKIE, ADMIN_TTL_MS, adminUrl, isAdmin, requireAdmin } from "@/lib/admin";
+import { bumpEpoch, claimTotp, getEpoch } from "@/lib/admin-state";
+import { clientIp } from "@/lib/ip";
+import { rateCount, rateHit, rateReset } from "@/lib/ratelimit";
+import { signSession, totpMatch, verifyPassword } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { sendOrderEmails } from "@/lib/notifications";
 import { OrderError, setOrderStatus } from "@/lib/orders";
@@ -17,26 +20,42 @@ const intIn = (v: string, min: number, max: number) => {
 const back = (path: string, params: Record<string, string>) =>
   redirect(`${adminUrl(path)}?${new URLSearchParams(params)}`);
 
+const LOGIN_WINDOW_S = 15 * 60;
+const LOGIN_MAX_PER_IP = 5;
+const LOGIN_MAX_GLOBAL = 40; // tope general contra intentos repartidos entre muchas IP
+
 export async function loginAction(formData: FormData) {
-  const h = await headers();
-  const key = (h.get("x-forwarded-for") ?? "local").split(",")[0].trim();
-  if (loginBlocked(key) || loginBlocked("global")) back("/login", { error: "Demasiados intentos. Espera unos minutos." });
+  const db = await getDb();
+  const ipKey = `login:ip:${await clientIp()}`;
+  if (
+    (await rateCount(db, ipKey, LOGIN_WINDOW_S)) >= LOGIN_MAX_PER_IP ||
+    (await rateCount(db, "login:global", LOGIN_WINDOW_S)) >= LOGIN_MAX_GLOBAL
+  ) {
+    back("/login", { error: "Demasiados intentos. Espera unos minutos." });
+  }
+  // Se comprueban contraseña y código siempre (sin cortocircuito) para no revelar cuál falló.
   const okPw = await verifyPassword(str(formData, "password", 200));
   const secret = process.env.ADMIN_TOTP_SECRET?.trim();
-  const okTotp = !secret || verifyTotp(str(formData, "code", 10), secret);
+  let okTotp = !secret;
+  if (secret) {
+    const counter = totpMatch(str(formData, "code", 10), secret);
+    okTotp = counter !== null && (await claimTotp(db, counter)); // un código ya usado no sirve de nuevo
+  }
   if (!okPw || !okTotp) {
-    loginFailed(key);
-    loginFailed("global");
+    await rateHit(db, ipKey, LOGIN_WINDOW_S);
+    await rateHit(db, "login:global", LOGIN_WINDOW_S);
     back("/login", { error: "Credenciales incorrectas." });
   }
-  loginOk(key);
-  (await cookies()).set(ADMIN_COOKIE, signSession(ADMIN_TTL_MS), {
+  await rateReset(db, ipKey);
+  (await cookies()).set(ADMIN_COOKIE, signSession(ADMIN_TTL_MS, Date.now(), await getEpoch(db)), {
     httpOnly: true, sameSite: "strict", secure: process.env.NODE_ENV === "production", path: "/", maxAge: ADMIN_TTL_MS / 1000,
   });
   redirect(adminUrl());
 }
 
 export async function logoutAction() {
+  // Solo quien ya es administrador puede revocar sesiones (si no, cualquiera podría cerrar la del dueño).
+  if (await isAdmin()) await bumpEpoch(await getDb());
   (await cookies()).delete(ADMIN_COOKIE);
   redirect(adminUrl("/login"));
 }
@@ -103,6 +122,10 @@ export async function saveSettingsAction(formData: FormData) {
     whatsapp: str(formData, "whatsapp", 20).replace(/\D/g, ""),
     whatsapp_message: str(formData, "whatsapp_message", 200),
     support_email: str(formData, "support_email", 120),
+    legal_name: str(formData, "legal_name", 120),
+    legal_id: str(formData, "legal_id", 40),
+    legal_address: str(formData, "legal_address", 200),
+    legal_city: str(formData, "legal_city", 80),
     instagram: social("instagram"), facebook: social("facebook"), tiktok: social("tiktok"),
     youtube: social("youtube"), x: social("x"),
   });

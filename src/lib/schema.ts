@@ -62,4 +62,9 @@ CREATE TABLE IF NOT EXISTS order_items (
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS confirmation_sent_at timestamptz;
 CREATE INDEX IF NOT EXISTS order_items_variant ON order_items(variant_id);
 CREATE INDEX IF NOT EXISTS orders_status ON orders(status, reserved_until);
+CREATE TABLE IF NOT EXISTS rate_limits (
+  key text PRIMARY KEY,
+  window_start timestamptz NOT NULL DEFAULT now(),
+  count integer NOT NULL DEFAULT 0
+);
 `;

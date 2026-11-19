@@ -3,14 +3,14 @@ import { sessionSecret } from "./env";
 
 const b64u = (b: Buffer) => b.toString("base64url");
 
-/** Token firmado con HMAC: `<payload>.<firma>`; el payload lleva la expiración (ms). */
-export function signSession(ttlMs: number, now = Date.now()): string {
-  const payload = b64u(Buffer.from(JSON.stringify({ exp: now + ttlMs, n: b64u(randomBytes(8)) })));
+/** Token firmado con HMAC: `<payload>.<firma>`; el payload lleva la expiración (ms) y la «época» de sesión (cerrar sesión la incrementa y revoca todos los tokens). */
+export function signSession(ttlMs: number, now = Date.now(), epoch = 0): string {
+  const payload = b64u(Buffer.from(JSON.stringify({ exp: now + ttlMs, n: b64u(randomBytes(8)), e: epoch })));
   const sig = b64u(createHmac("sha256", sessionSecret()).update(payload).digest());
   return `${payload}.${sig}`;
 }
 
-export function verifySession(token: string | undefined, now = Date.now()): boolean {
+export function verifySession(token: string | undefined, now = Date.now(), epoch?: number): boolean {
   if (!token) return false;
   const [payload, sig] = token.split(".");
   if (!payload || !sig) return false;
@@ -23,7 +23,8 @@ export function verifySession(token: string | undefined, now = Date.now()): bool
   }
   if (given.length !== good.length || !timingSafeEqual(given, good)) return false;
   try {
-    const { exp } = JSON.parse(Buffer.from(payload, "base64url").toString());
+    const { exp, e } = JSON.parse(Buffer.from(payload, "base64url").toString());
+    if (epoch !== undefined && (e ?? 0) !== epoch) return false;
     return typeof exp === "number" && exp > now;
   } catch {
     return false;
@@ -81,31 +82,16 @@ export function totpCode(secretB32: string, atMs = Date.now()): string {
   return String(n % 1_000_000).padStart(6, "0");
 }
 
-export function verifyTotp(code: string, secretB32: string, atMs = Date.now()): boolean {
-  if (!/^\d{6}$/.test(code)) return false;
-  return [-1, 0, 1].some((w) => {
+/** Devuelve el contador de 30 s al que corresponde el código (ventana ±1), o null si no coincide. */
+export function totpMatch(code: string, secretB32: string, atMs = Date.now()): number | null {
+  if (!/^\d{6}$/.test(code)) return null;
+  for (const w of [-1, 0, 1]) {
     const want = Buffer.from(totpCode(secretB32, atMs + w * 30000));
-    return timingSafeEqual(want, Buffer.from(code));
-  });
+    if (timingSafeEqual(want, Buffer.from(code))) return Math.floor(atMs / 30000) + w;
+  }
+  return null;
 }
 
-// --- límite de intentos (en memoria; suficiente para un único administrador) -------------------------
-const attempts = new Map<string, { n: number; until: number }>();
-const MAX_ATTEMPTS = 5;
-const LOCK_MS = 15 * 60 * 1000;
-
-export function loginBlocked(key: string, now = Date.now()): boolean {
-  const a = attempts.get(key);
-  return !!a && a.n >= MAX_ATTEMPTS && a.until > now;
-}
-export function loginFailed(key: string, now = Date.now()): void {
-  const a = attempts.get(key);
-  const n = a && a.until > now ? a.n + 1 : 1;
-  attempts.set(key, { n, until: now + LOCK_MS });
-}
-export function loginOk(key: string): void {
-  attempts.delete(key);
-}
-export function resetAttempts(): void {
-  attempts.clear();
+export function verifyTotp(code: string, secretB32: string, atMs = Date.now()): boolean {
+  return totpMatch(code, secretB32, atMs) !== null;
 }

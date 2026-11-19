@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { cartView } from "@/lib/cart";
 import { formatCop } from "@/lib/pricing";
@@ -29,6 +30,15 @@ export default async function Checkout({ searchParams }: Props) {
           </div>
           <div className="field"><label htmlFor="address">Dirección de entrega</label><input id="address" name="address" type="text" required autoComplete="street-address" /></div>
           <div className="field"><label htmlFor="notes">Indicaciones (opcional)</label><textarea id="notes" name="notes" rows={3} maxLength={500} /></div>
+          <div className="field">
+            <label htmlFor="accept" style={{ display: "flex", gap: ".6rem", alignItems: "flex-start", textTransform: "none", letterSpacing: 0 }}>
+              <input id="accept" name="accept" type="checkbox" required style={{ width: "auto", marginTop: ".25rem" }} />
+              <span>
+                Acepto los <Link href="/politicas/terminos" target="_blank">términos y condiciones</Link> y autorizo el tratamiento de mis datos
+                según la <Link href="/politicas/datos" target="_blank">política de datos personales</Link>.
+              </span>
+            </label>
+          </div>
           <p className="muted" style={{ fontSize: ".9rem" }}>
             Al continuar reservamos tus prendas por 15 minutos mientras pagas.
           </p>

@@ -133,3 +133,29 @@ describe("configuración", () => {
     expect(safeUrl("https://instagram.com/tienda")).toBe("https://instagram.com/tienda");
   });
 });
+
+describe("validación de datos del cliente (endurecida)", () => {
+  it("rechaza correos con coma, espacios o caracteres de control", () => {
+    for (const email of ["a@b.co,evil@x.com", "a b@c.com", "a@b.com\r\nBcc: x@y.com", "<a@b.com>", "sin-arroba.com", "a@b"]) {
+      expect(validateCustomer({ ...CUSTOMER, email }), email).not.toBeNull();
+    }
+    expect(validateCustomer({ ...CUSTOMER, email: "ana.perez+tienda@dominio.com.co" })).toBeNull();
+  });
+
+  it("rechaza saltos de línea en nombre y dirección, y textos demasiado largos", () => {
+    expect(validateCustomer({ ...CUSTOMER, name: "Ana\nBcc: x@y.com" })).not.toBeNull();
+    expect(validateCustomer({ ...CUSTOMER, address: "Calle 1 # 2-3\r\nX" })).not.toBeNull();
+    expect(validateCustomer({ ...CUSTOMER, name: "A".repeat(200) })).not.toBeNull();
+  });
+});
+
+describe("pago sobre pedido cancelado", () => {
+  it("queda pagado pero con alerta para revisar o reembolsar", async () => {
+    const v = await variantId("ferro-hombre", "M");
+    const { code } = await createOrder(db, CUSTOMER, [{ variantId: v, qty: 1 }], PRICING, "simulated");
+    await setOrderStatus(db, code, "cancelled");
+    expect(await confirmPayment(db, code, "REF-1")).toBe("paid");
+    const [o] = await db.query<{ notes: string }>("SELECT notes FROM orders WHERE code = $1", [code]);
+    expect(o.notes).toContain("ALERTA");
+  });
+});

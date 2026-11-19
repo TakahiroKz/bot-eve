@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { addToCart, readCart, writeCart } from "@/lib/cart";
 import { getDb } from "@/lib/db";
+import { clientIp } from "@/lib/ip";
+import { rateHit } from "@/lib/ratelimit";
 import { confirmPaymentAndNotify } from "@/lib/notifications";
 import { createOrder, OrderError, setOrderStatus, type Customer } from "@/lib/orders";
 import { getProvider } from "@/lib/payments";
@@ -43,7 +45,12 @@ export async function checkoutAction(formData: FormData) {
   };
   let target: string;
   try {
+    if (formData.get("accept") !== "on") throw new OrderError("Debes aceptar los términos y la política de datos para continuar.");
     const db = await getDb();
+    // Evita acaparar stock creando pedidos pendientes en serie (cada uno reserva 15 min).
+    if ((await rateHit(db, `checkout:ip:${await clientIp()}`, 3600)) > 8) {
+      throw new OrderError("Has creado demasiados pedidos en poco tiempo. Inténtalo de nuevo más tarde.");
+    }
     const settings = await getSettings(db);
     const provider = getProvider();
     const order = await createOrder(db, customer, await readCart(), settings, provider.name);
