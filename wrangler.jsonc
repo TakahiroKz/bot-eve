@@ -1,17 +1,18 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "nerova",
-  // Producción: crea el Hyperdrive con `wrangler hyperdrive create` (ver docs/DESPLIEGUE.md) y pega aquí su id.
+  // ADMIN_PATH (ruta secreta del panel) es un secreto de Cloudflare, no una variable: el repositorio es público.
   "main": ".open-next/worker.js",
+  "routes": [{ "pattern": "nerova.com.co", "custom_domain": true }],
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
-      "id": "REEMPLAZAR_CON_EL_ID_DE_HYPERDRIVE",
+      "id": "1470601c8f5e43ac8dc64aca50fa0969",
       "localConnectionString": "postgres://postgres:postgres@127.0.0.1:5433/postgres"
     }
   ],
-  "vars": { "ADMIN_PATH": "/gestion-privada", "SITE_URL": "http://localhost:8787", "EMAIL_PROVIDER": "memory", "PAYMENTS_PROVIDER": "simulated" }
+  "vars": { "SITE_URL": "https://nerova.com.co", "EMAIL_PROVIDER": "memory", "PAYMENTS_PROVIDER": "simulated" }
 }

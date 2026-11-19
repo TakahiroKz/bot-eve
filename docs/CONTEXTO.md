@@ -1,3 +1,8 @@
+> **Actualización 2026-11-19 (noche):** la tienda ya está publicada en https://nerova.com.co. Túnel `nerova-db`, Access, Hyperdrive,
+> esquema y secretos creados; Postgres 16 en el servidor Oracle (Docker eliminado, `fail2ban`, kernel actualizado). Auditoría de seguridad
+> y parches en `docs/SEGURIDAD.md`; políticas en `src/lib/policies.ts`. Despliegue manual: compilar en WSL (`npx opennextjs-cloudflare build`)
+> y `npx wrangler deploy`. Estado vivo y siguientes pasos: `PENDIENTES.md`. Las secciones de abajo describen el estado previo.
+
 # Contexto completo del proyecto — Nerova (tienda de chaquetas de cuero)
 
 > Documento de traspaso: permite a una persona o a un agente nuevo retomar el proyecto sin haber visto la conversación.

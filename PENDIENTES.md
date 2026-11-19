@@ -42,3 +42,14 @@
 - [ ] Siguiente: instalar Postgres + túnel en ese servidor, Hyperdrive, publicar. **Detalle completo y arranque en Claude Code local: `docs/CONTEXTO.md` (secciones 8, 10 y 14).**
 - [ ] Rotar la llave SSH (`oracle_vm.key` quedó expuesta en una conversación) y revocar el token de Cloudflare al terminar.
 - [ ] Revisar Billing → Cost Analysis de Oracle (las dos A1 de EveMarket podrían exceder el plan gratuito).
+
+## Estado al 2026-11-19 (noche)
+- [x] **Publicado:** https://nerova.com.co (Cloudflare Workers + Hyperdrive + túnel a Postgres en Oracle). Panel en una ruta secreta aleatoria (secreto `ADMIN_PATH`).
+- [x] **Auditoría de seguridad** y parches: ver `docs/SEGURIDAD.md`.
+- [x] **Políticas redactadas** (términos, cambios y devoluciones, envíos, datos personales) en `src/lib/policies.ts`, con el correo `contacto@nerova.com.co`. **Falta revisión de un abogado** y que completes en el panel (Ajustes → Datos legales del vendedor): nombre completo, documento, dirección y ciudad del titular.
+- [ ] **Correo `contacto@nerova.com.co`:** Email Routing habilitado; falta que verifiques tu Gmail (correo de Cloudflare) y ejecutes `bash scripts/crear-regla-correo.sh`. Es solo para recibir; para enviar desde esa dirección hace falta Resend/Brevo o «Enviar como» en Gmail.
+- [ ] **Bloqueante para vender:** pasarela de pago real + webhook. Con `PAYMENTS_PROVIDER=simulated` el checkout falla en producción a propósito.
+- [ ] `EMAIL_PROVIDER` sigue en `memory` (no se envían correos de pedido) hasta configurar Resend o Brevo.
+- [ ] Copias de seguridad cifradas de Postgres con restauración probada.
+- [ ] Decidir la rama `main` para los flujos de GitHub (`ci.yml`, `deploy.yml`); hoy se despliega a mano desde WSL (OpenNext no compila en Windows).
+- [ ] Rotar la llave SSH y revocar el token de Cloudflare cuando el dueño lo autorice.
