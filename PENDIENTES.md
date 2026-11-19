@@ -28,3 +28,10 @@
 - [x] Correo de confirmación de pedido: implementado (cliente + aviso al dueño, reenvío desde el panel). Falta **configurarlo con tu dominio**: ver `docs/CORREO.md` (Cloudflare Email Routing para recibir, Resend o Brevo para enviar).
 - [ ] Correo «tu pedido va en camino» al marcar como enviado (aún no implementado).
 - [ ] Copias de seguridad de la base de datos y analítica.
+
+## Despliegue (decidido: opción B)
+- [x] Prueba de compatibilidad con Cloudflare Workers (OpenNext + Hyperdrive): pasa en local. Ver `docs/DESPLIEGUE.md`.
+- [ ] Comprar el dominio en Cloudflare Registrar.
+- [ ] **Servidor Oracle E2 Micro:** confirmar región, sistema operativo, IP pública y acceso SSH; luego preparar los scripts de instalación (Postgres ajustado a 1 GB, túnel, copias de seguridad). *No tengo acceso a ese servidor desde la sesión en la nube; los comandos los ejecutas tú y me pasas la salida.* El agente de «web-scraping» no estaba alcanzable desde esta sesión.
+- [ ] Crear Hyperdrive y túnel, cargar secretos en Cloudflare, configurar `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` en GitHub.
+- [ ] Probar CPU por petición con Workers Paid; vigilar actualizaciones del adaptador (middleware de Node experimental).

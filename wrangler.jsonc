@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nerova",
+  // Producción: crea el Hyperdrive con `wrangler hyperdrive create` (ver docs/DESPLIEGUE.md) y pega aquí su id.
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "REEMPLAZAR_CON_EL_ID_DE_HYPERDRIVE",
+      "localConnectionString": "postgres://postgres:postgres@127.0.0.1:5433/postgres"
+    }
+  ],
+  "vars": { "ADMIN_PATH": "/gestion-privada", "SITE_URL": "http://localhost:8787", "EMAIL_PROVIDER": "memory", "PAYMENTS_PROVIDER": "simulated" }
+}
