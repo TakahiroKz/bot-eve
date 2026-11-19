@@ -97,7 +97,7 @@ export async function saveSettingsAction(formData: FormData) {
     return v ? safeUrl(v) : "";
   };
   await saveSettings(await getDb(), {
-    store_name: str(formData, "store_name", 80) || "Tienda de chaquetas",
+    store_name: str(formData, "store_name", 80) || "Nerova",
     shipping_fee: String(fee), free_shipping_min_items: String(min), delivery_days: String(days),
     whatsapp: str(formData, "whatsapp", 20).replace(/\D/g, ""),
     whatsapp_message: str(formData, "whatsapp_message", 200),

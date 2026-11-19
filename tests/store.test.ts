@@ -48,17 +48,17 @@ describe("catálogo sembrado", () => {
 
 describe("pedidos y stock", () => {
   it("usa el precio de la base de datos, calcula envío y reserva stock", async () => {
-    const v = await variantId("vertice-hombre", "M");
+    const v = await variantId("ferro-hombre", "M");
     const o = await createOrder(db, CUSTOMER, [{ variantId: v, qty: 1 }], PRICING, "simulated");
     expect(o.total).toBe(549000 + 15000);
-    const p = (await listProducts({}, db)).find((x) => x.slug === "vertice-hombre")!;
+    const p = (await listProducts({}, db)).find((x) => x.slug === "ferro-hombre")!;
     const m = p.variants.find((x) => x.size === "M")!;
     expect(m.stock).toBe(5);
     expect(m.available).toBe(4); // reservada, aún no descontada
   });
 
   it("no vende más de lo que hay (la reserva cuenta) y se libera al vencer", async () => {
-    const v = await variantId("vertice-hombre", "L");
+    const v = await variantId("ferro-hombre", "L");
     await createOrder(db, CUSTOMER, [{ variantId: v, qty: 5 }], PRICING, "simulated");
     await expect(createOrder(db, CUSTOMER, [{ variantId: v, qty: 1 }], PRICING, "simulated")).rejects.toThrow(OrderError);
     await db.query("UPDATE orders SET reserved_until = now() - interval '1 minute'");
@@ -66,7 +66,7 @@ describe("pedidos y stock", () => {
   });
 
   it("pedidos simultáneos de la última unidad: solo uno gana", async () => {
-    const v = await variantId("brasa-hombre", "M");
+    const v = await variantId("ascua-hombre", "M");
     await db.query("UPDATE variants SET stock = 1 WHERE id = $1", [v]);
     const results = await Promise.allSettled(
       Array.from({ length: 4 }, () => createOrder(db, CUSTOMER, [{ variantId: v, qty: 1 }], PRICING, "simulated")),
@@ -75,7 +75,7 @@ describe("pedidos y stock", () => {
   });
 
   it("confirmar el pago descuenta stock una sola vez (idempotente)", async () => {
-    const v = await variantId("noctua-mujer", "S");
+    const v = await variantId("noxa-mujer", "S");
     const o = await createOrder(db, CUSTOMER, [{ variantId: v, qty: 2 }], PRICING, "simulated");
     expect(o.total).toBe(529000 * 2); // envío gratis
     expect(await confirmPayment(db, o.code, "ref-1")).toBe("paid");
@@ -85,7 +85,7 @@ describe("pedidos y stock", () => {
   });
 
   it("pago con reserva vencida y sin stock queda marcado para revisión", async () => {
-    const v = await variantId("eclipse-mujer", "M");
+    const v = await variantId("lumbre-mujer", "M");
     const o = await createOrder(db, CUSTOMER, [{ variantId: v, qty: 2 }], PRICING, "simulated");
     await db.query("UPDATE variants SET stock = 1 WHERE id = $1", [v]);
     await confirmPayment(db, o.code, "ref");
@@ -96,7 +96,7 @@ describe("pedidos y stock", () => {
   });
 
   it("flujo de estados del panel; cancelar un pedido pagado devuelve el stock", async () => {
-    const v = await variantId("carmin-mujer", "S");
+    const v = await variantId("brasa-mujer", "S");
     const o = await createOrder(db, CUSTOMER, [{ variantId: v, qty: 1 }], PRICING, "simulated");
     await expect(setOrderStatus(db, o.code, "shipped")).rejects.toThrow(OrderError); // pendiente no puede enviarse
     await confirmPayment(db, o.code, "r");
@@ -115,8 +115,8 @@ describe("pedidos y stock", () => {
 
   it("rechaza carrito vacío y productos inactivos", async () => {
     await expect(createOrder(db, CUSTOMER, [], PRICING, "simulated")).rejects.toThrow(/vacío/);
-    const v = await variantId("vertice-hombre", "M");
-    await db.query("UPDATE products SET active = false WHERE slug = 'vertice-hombre'");
+    const v = await variantId("ferro-hombre", "M");
+    await db.query("UPDATE products SET active = false WHERE slug = 'ferro-hombre'");
     await expect(createOrder(db, CUSTOMER, [{ variantId: v, qty: 1 }], PRICING, "simulated")).rejects.toThrow(/disponible/);
   });
 });

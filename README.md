@@ -1,4 +1,4 @@
-# Tienda de chaquetas de cuero
+# Nerova · Chaquetas de cuero
 
 Tienda propia (Next.js + Postgres) para Colombia: catálogo, inventario por talla, carrito, checkout, pagos y panel de administración.
 Plan: [`PLAN.md`](PLAN.md) · Pendientes y decisiones abiertas: [`PENDIENTES.md`](PENDIENTES.md).

@@ -16,7 +16,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Record<string, string> = {
-  store_name: "Tienda de chaquetas",
+  store_name: "Nerova",
   shipping_fee: "15000",
   free_shipping_min_items: "2",
   delivery_days: "3",

@@ -26,7 +26,7 @@ Propuesta 2 (identidad, estilo BMW/Audi): «Diseñada para quien no necesita exp
 («100% genuino», «hecho a mano», «de por vida»). Español latinoamericano, tono cercano y aspiracional.
 
 ## Fases
-0. Identidad (nombre, paleta, tipografía) — pendiente; el sitio usa un nombre y una paleta provisionales editables.
+0. Identidad — hecha: marca **Nerova**, paleta Obsidiana (rojo), tipografía Oswald + Inter, modelos familia A (Ferro, Basalto, Ascua / Noxa, Lumbre, Brasa). Pendiente verificar dominio, marca en la SIC y redes.
 1. Cimientos: repositorio, base de datos, modelo de datos.
 2. Catálogo: inicio, hombre/mujer, producto, tallas y stock.
 3. Carrito y checkout: carrito, datos de envío, envío gratis desde 2 prendas.

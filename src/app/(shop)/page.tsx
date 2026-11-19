@@ -9,12 +9,12 @@ export default async function Home() {
     <>
       <section className="hero">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/products/prueba-modelo.jpg" alt="Hombre con chaqueta de cuero negra sobre un muro de ladrillo (foto de prueba)" />
+        <img src="/products/prueba-modelo.jpg" alt="Hombre con chaqueta de cuero negra, Nerova (foto de prueba)" />
         <div className="wrap">
-          <p className="eyebrow">Colección</p>
+          <p className="eyebrow">Chaquetas de cuero · Colección</p>
           <h1>Diseñada para quien no necesita explicarse.</h1>
           <p className="lead">Líneas precisas. Cuero con carácter. Una prenda que dice quién eres antes de que hables.</p>
-          <Link href="/hombre" className="btn">Hombre</Link>{" "}
+          <Link href="/hombre" className="btn accent">Hombre</Link>{" "}
           <Link href="/mujer" className="btn ghost">Mujer</Link>
         </div>
       </section>

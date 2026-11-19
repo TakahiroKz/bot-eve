@@ -1,7 +1,10 @@
 # Pendientes
 
 ## Decisiones del dueño (abiertas)
-- [ ] **Nombre de la marca, paleta y tipografía** (fase 0). Hoy el sitio usa «Tienda de chaquetas» y una paleta provisional (`src/app/globals.css`, ajuste «Nombre de la tienda» en el panel).
+- [x] **Identidad (fase 0): decidida.** Nombre **Nerova** («Chaquetas de cuero» como subtítulo), paleta Obsidiana (negro `#0b0b0c`, hueso `#f2f0ec`, rojo `#b3202f`), tipografía Oswald (titulares) + Inter (texto). Modelos, familia A: hombre Ferro, Basalto (negros) y Ascua (rojo); mujer Noxa, Lumbre (negras) y Brasa (roja).
+- [ ] **Verificar el nombre Nerova** (la búsqueda web no encontró conflictos, pero no reemplaza lo oficial): dominio `nerova.com.co` o `nerova.co` en un registrador; **consulta de marca en la SIC, clase 25** (prendas de vestir); `@nerova` en Instagram y TikTok (o variante limpia).
+- [ ] **«Lumbre»** aparece como nombre de una parka de gamuza en Vélez (tienda colombiana). Es solo nombre de modelo, pero decidir si se conserva o se cambia.
+- [ ] Verificar en la SIC los nombres de modelo si se quieren proteger.
 - [ ] **Pasarela de pago**: consultar a Wompi si acepta persona natural; alternativas Mercado Pago o PayU (PSE, Nequi, tarjetas). Hoy: proveedor simulado.
 - [ ] **Facturación** como persona natural: validar con un contador el método (factura electrónica o documento equivalente).
 - [ ] **Política de cambios y devoluciones** (derecho de retracto, Ley 1480). Hoy: página con texto provisional.
