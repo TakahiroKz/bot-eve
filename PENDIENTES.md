@@ -35,3 +35,10 @@
 - [ ] **Servidor Oracle E2 Micro:** confirmar región, sistema operativo, IP pública y acceso SSH; luego preparar los scripts de instalación (Postgres ajustado a 1 GB, túnel, copias de seguridad). *No tengo acceso a ese servidor desde la sesión en la nube; los comandos los ejecutas tú y me pasas la salida.* El agente de «web-scraping» no estaba alcanzable desde esta sesión.
 - [ ] Crear Hyperdrive y túnel, cargar secretos en Cloudflare, configurar `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` en GitHub.
 - [ ] Probar CPU por petición con Workers Paid; vigilar actualizaciones del adaptador (middleware de Node experimental).
+
+## Estado al cierre de la sesión en la nube (2026-11-19)
+- [x] Servidor Oracle `Instance-00-EveMarketAnalyzer` auditado: limpio, el dueño confirmó que nada depende de él.
+- [x] Dominio `nerova.com.co` comprado (Cloudflare).
+- [ ] Siguiente: instalar Postgres + túnel en ese servidor, Hyperdrive, publicar. **Detalle completo y arranque en Claude Code local: `docs/CONTEXTO.md` (secciones 8, 10 y 14).**
+- [ ] Rotar la llave SSH (`oracle_vm.key` quedó expuesta en una conversación) y revocar el token de Cloudflare al terminar.
+- [ ] Revisar Billing → Cost Analysis de Oracle (las dos A1 de EveMarket podrían exceder el plan gratuito).

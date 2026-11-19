@@ -1,13 +1,13 @@
 # Contexto completo del proyecto — Nerova (tienda de chaquetas de cuero)
 
 > Documento de traspaso: permite a una persona o a un agente nuevo retomar el proyecto sin haber visto la conversación.
-> Última actualización: 2026-11-19. Rama de trabajo: `claude/eve-hauling-bot-plan-ej6pj5`. **No incluye secretos** (ni tokens ni claves); ver «Gestión de secretos».
+> Última actualización: 2026-11-19 (cierre de la sesión en la nube; el trabajo continúa en Claude Code local, ver sección 14). Rama de trabajo: `claude/eve-hauling-bot-plan-ej6pj5`. **No incluye secretos** (ni tokens ni claves); ver «Gestión de secretos».
 
 ## 1. Resumen en 30 segundos
 - **Qué es:** tienda online propia de **chaquetas de cuero** para Colombia (COP), con catálogo, inventario por talla, carrito, checkout, pagos, correo de confirmación y panel de administración oculto.
 - **Marca:** **Nerova** («Chaquetas de cuero» como subtítulo). Dominio comprado: **`nerova.com.co`** (en Cloudflare Registrar).
 - **Dueño:** Leo (persona natural, Colombia). Habla español; prefiere planificar antes de construir y que se verifique con fuentes.
-- **Estado:** la tienda funciona completa en local y en el simulador de Cloudflare (24 pruebas automáticas + recorrido de navegador de 13 comprobaciones). **No está publicada.** Faltan: servidor de base de datos (Oracle), Hyperdrive/túnel, publicación en Cloudflare, pasarela de pago real, política de cambios, facturación, fotos reales y precios definitivos.
+- **Estado:** la tienda funciona completa en local y en el simulador de Cloudflare (24 pruebas automáticas + recorrido de navegador de 13 comprobaciones). **No está publicada.** Ya están hechos: código, identidad, correo de confirmación, soporte de Cloudflare, flujos de GitHub, dominio comprado y servidor Oracle auditado (limpio). **Faltan:** instalar Postgres y el túnel en Oracle, Hyperdrive, publicar el Worker, pasarela de pago real, política de cambios, facturación, fotos reales y precios definitivos.
 - **Decisión de despliegue (opción B):** web en **Cloudflare Workers** (OpenNext) + base de datos **Postgres en un servidor Oracle Cloud gratuito (E2 Micro, 1 GB)**, conectados por **Hyperdrive + Cloudflare Tunnel**. Despliegue automático desde GitHub.
 
 ## 2. Historia del repositorio
@@ -84,18 +84,29 @@ Para borrar los datos de desarrollo: eliminar la carpeta `.data` y reiniciar.
 - Riesgos conocidos: middleware de Node **experimental** en el adaptador de OpenNext (fijar versión; mantener la prueba del panel); el simulador de pagos debe seguir bloqueado en producción.
 
 ## 8. Despliegue y estado de la infraestructura
-- **Cloudflare:** cuenta con dominio `nerova.com.co` (Registrar). La cuenta contiene **otro proyecto del dueño que NO se debe tocar**: zona `evemarket-analyzer.online` y túnel `evemarket`. Aún no hay Workers ni Hyperdrive (verificado por API de solo lectura el 2026-11-19).
+- **Cloudflare (verificado por API el 2026-11-19):** dominio **`nerova.com.co`** en Registrar y con zona creada. **No hay Workers ni Hyperdrive todavía.** La cuenta contiene **otro proyecto del dueño que NO se debe tocar**: zona `evemarket-analyzer.online` y túnel `evemarket` (activo; corre en la instancia `EveMarketAnalyzer-02`).
 - **Prueba de compatibilidad (local):** OpenNext 1.20.17 + Next 16.4.6: paquete 1,49 MB comprimido; carrito, checkout, pago simulado, panel oculto y ajustes funcionan en el simulador de Cloudflare con Postgres local. **No medido:** límite de 10 ms de CPU del plan gratuito (probablemente se necesite Workers Paid, 5 USD/mes), túnel real, Hyperdrive real.
-- **Oracle Cloud:** cuenta Pay As You Go. Servidor **E2 Micro (AMD, 1 GB)**, región **us-ashburn-1**, **Ubuntu**, con IP pública. El dueño dice tener **dos máquinas** y debe revisar cuál está vacía: usar `deploy/oracle/auditar.sh` (solo lectura) y pegar la salida. SSH aún no verificado. **Desde la sesión en la nube no hay acceso SSH** a ese servidor (las llaves no deben compartirse): el dueño ejecuta los comandos y pega la salida.
-- **Alerta (2026-11-19):** el túnel `evemarket` está **activo (healthy)** y se conecta desde una IP pública de Oracle en Ashburn (conexiones abiertas el 2026-11-17). La instancia que el dueño abrió en la consola se llama **«Instance-00-EveMarketAnalyzer»**, lanzada el 2026-09-22: **muy probablemente es la máquina en uso del otro proyecto, no la limpia**. No recrearla ni borrarla hasta comparar su IP pública con la del túnel. El dueño no conserva la llave SSH de esa máquina.
-- **Plan para Oracle (pendiente):** swap de 2 GB, SSH solo con llave, Postgres solo en `127.0.0.1` ajustado a 1 GB (`shared_buffers` ~64 MB, `max_connections` ~20), `cloudflared` (túnel) hacia Postgres, copia diaria cifrada fuera del servidor **con prueba de restauración**, alerta de presupuesto de 1 USD, monitor de disponibilidad. Cuidado: Oracle puede recuperar instancias gratuitas inactivas (CPU/red < 20 % durante 7 días) y suspender cuentas inactivas 30 días.
-- **Despliegue automático:** `.github/workflows/deploy.yml` (push a `main`: prueba, compila, `wrangler deploy`). Requiere secretos de GitHub `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`. Los secretos de la tienda (`SESSION_SECRET`, `ADMIN_PASSWORD_HASH`, `ADMIN_TOTP_SECRET`, `RESEND_API_KEY`) van en Cloudflare con `wrangler secret put`. `wrangler.jsonc` tiene el id de Hyperdrive como marcador `REEMPLAZAR_CON_EL_ID_DE_HYPERDRIVE`.
-- **Ojo con la rama:** los flujos de GitHub se disparan con `main`; el trabajo vive en la rama `claude/eve-hauling-bot-plan-ej6pj5`. Hay que fusionar a `main` (decisión del dueño) para que corran.
+- **Oracle Cloud (región us-ashburn-1, cuenta Pay As You Go).** Hay 3 instancias:
+  | Instancia | Tipo | Uso |
+  |---|---|---|
+  | `EveMarket-Analyzer` | A1.Flex 2 CPU / 12 GB | Proyecto EveMarket — **no tocar** |
+  | `EveMarketAnalyzer-02` | A1.Flex 2 CPU / 12 GB | Proyecto EveMarket; aquí corre el túnel `evemarket` — **no tocar** |
+  | **`Instance-00-EveMarketAnalyzer`** (hostname `vnic-evemarketanalyzer`) | **E2.1.Micro, 1 OCPU, 952 MB RAM, disco 48 GB** | **Candidata para la tienda (base de datos). Auditada: limpia.** |
+  - **Auditoría (`deploy/oracle/auditar.sh`, 2026-11-19):** Ubuntu 24.04.5, 12 % de disco usado, sin contenedores, bases de datos, servidor web ni cron; solo escucha el puerto 22; `/home/ubuntu` pesa 76 KB; cortafuegos `iptables` solo admite el puerto 22. Restos de un intento anterior: **Docker/containerd y `cloudflared` instalados sin uso** (se pueden quitar; Docker gasta memoria). Cuentas con shell: `root`, `opc`, `ubuntu`. Accesos desde la IP del dueño y desde Cloud Shell (confirmado por el dueño). **El dueño confirmó que nada depende de esa máquina.**
+  - **Llave SSH:** el dueño la había perdido, la encontró (`oracle_vm.key`, RSA) y la **subió a la conversación de la sesión en la nube**: debe considerarse expuesta → **rotarla** al terminar (generar par ed25519, añadir la pública a `~ubuntu/.ssh/authorized_keys`, probar, quitar la vieja). Es probable que sea la misma de las instancias de EveMarket.
+  - **Posible cargo:** las dos A1 suman 4 CPU/24 GB; la documentación de Oracle habla de un límite gratuito de 2 CPU/12 GB (las fuentes discrepan) → revisar **Billing → Cost Analysis**. No se ha verificado.
+  - **Acceso desde la sesión en la nube:** imposible por SSH (el entorno solo sale por un proxy HTTPS y rechaza el puerto 22). Se preparó un canal alternativo (runner de GitHub Actions, ver abajo) que **deja de ser necesario si se trabaja desde Claude Code local**, donde SSH funciona directo.
+- **Plan para el servidor (pendiente):** quitar Docker, swap de 2 GB, SSH solo con llave, **Postgres 16 solo en `127.0.0.1`** ajustado a 1 GB (`shared_buffers` ~64 MB, `max_connections` ~20), base y usuario de la tienda con contraseña aleatoria, **`cloudflared`** (túnel nuevo, p. ej. hostname `db.nerova.com.co` → `localhost:5432`; **no reutilizar ni tocar `evemarket`**), copia diaria cifrada fuera del servidor **con prueba de restauración**, alerta de presupuesto de 1 USD, monitor de disponibilidad. Cuidado: Oracle puede recuperar instancias gratuitas inactivas (CPU/red < 20 % durante 7 días) y suspender cuentas inactivas 30 días.
+- **Hyperdrive con túnel (por verificar antes de implementar):** según la documentación de Cloudflare, para llegar a una base privada por túnel se usa un hostname TCP del túnel protegido por una aplicación de Cloudflare Access con *service token*, y `wrangler hyperdrive create ... --access-client-id/--access-client-secret`. Confirmar los pasos exactos en la documentación vigente.
+- **Canal de acceso temporal (opcional, ya subido):** `.github/workflows/servidor.yml` (ejecuta un comando en el servidor mediante un *runner* propio, etiqueta `nerova-oracle`), `deploy/oracle/acceso-temporal.sh` (crea el usuario `runner` con sudo sin contraseña + swap + opción `--quitar-docker`) y `deploy/oracle/revocar-acceso.sh`. **Requiere repositorio PRIVADO** (un runner propio en un repositorio público permite ejecutar código ajeno en el servidor). **No se instaló ningún runner**; no hace falta si se continúa en Claude Code local.
+- **Despliegue automático:** `.github/workflows/deploy.yml` (push a `main`: prueba, compila, `wrangler deploy`) y `ci.yml`. Requieren los secretos de GitHub `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`. Los secretos de la tienda (`SESSION_SECRET`, `ADMIN_PASSWORD_HASH`, `ADMIN_TOTP_SECRET`, `RESEND_API_KEY`) van en Cloudflare con `wrangler secret put`. `wrangler.jsonc` tiene el id de Hyperdrive como marcador `REEMPLAZAR_CON_EL_ID_DE_HYPERDRIVE`.
+- **Ojo con la rama:** el repositorio es **público** y su rama por defecto es la de trabajo (`claude/eve-hauling-bot-plan-ej6pj5`); **no existe `main`**, así que `ci.yml` y `deploy.yml` (que escuchan `main`) no corren. Decisión del dueño: crear `main` o cambiar los flujos a la rama actual. Considerar hacer el repositorio privado.
 
 ## 9. Gestión de secretos
-- Existe un **token de API de Cloudflare de desarrollo** que el dueño pegó en la conversación y **autorizó a usar** durante el desarrollo; **será revocado** al terminar. Está **fuera del repositorio** y no debe escribirse en ningún archivo, comentario ni commit. Permisos observados: lectura de zonas, Workers, Hyperdrive, túneles y Registrar. El dueño pidió usarlo; la recomendación de seguridad (revocar y usar un token de permisos mínimos o secretos de GitHub) quedó expuesta y él decidió conservarlo temporalmente.
-- Claves de Testnet de Binance del proyecto anterior fueron pegadas en una conversación antigua: deben considerarse comprometidas (regenerar).
-- Cualquier credencial nueva: preferir el formulario seguro de la plataforma o secretos de GitHub/Cloudflare, no el chat.
+- **Token de API de Cloudflare de desarrollo:** el dueño lo pegó en la conversación y **autorizó a usarlo** mientras se despliega; **será revocado** al terminar la tienda. **No está en el repositorio** (verificado) y no debe escribirse en ningún archivo, comentario ni commit. Permisos observados: lectura de zonas, Workers, Hyperdrive, túneles y Registrar; ignorar si permite escribir. Account ID: lo conoce el dueño (no se guarda aquí). En local, usarlos como variables de entorno o secretos de GitHub, nunca en archivos versionados.
+- **Llave SSH `oracle_vm.key`:** expuesta en la conversación (ver sección 8) → rotar.
+- **Claves de Testnet de Binance** del proyecto anterior fueron pegadas en una conversación antigua: regenerar.
+- **Otras credenciales por crear:** hash de la contraseña del panel (`npm run admin:hash`), `SESSION_SECRET`, `ADMIN_TOTP_SECRET`, contraseña de Postgres, claves de Resend/Brevo y de la pasarela. Preferir secretos de Cloudflare/GitHub o el formulario seguro de la plataforma, no el chat.
 
 ## 10. Pendientes (resumen; la lista viva está en `PENDIENTES.md`)
 **Decisiones del dueño**
@@ -105,15 +116,17 @@ Para borrar los datos de desarrollo: eliminar la carpeta `.data` y reiniciar.
 - [ ] Verificar la marca Nerova en la SIC (clase 25) y `@nerova` en redes; decidir si se conserva «Lumbre».
 - [ ] Contenido: fotos reales de las 6 prendas, nombres/textos/**precios definitivos** (hoy provisionales: 529.000–599.000), stock real por talla, guía de tallas con medidas reales.
 
-**Técnicos**
-- [ ] Servidor Oracle: revisar las dos máquinas, elegir la vacía, preparar scripts (Postgres, túnel, copias, monitoreo).
-- [ ] Crear Hyperdrive y túnel, cargar secretos en Cloudflare, ejecutar `db:migrate`, publicar el Worker, asignar `nerova.com.co`.
-- [ ] Fusionar a `main` y configurar secretos de GitHub para el despliegue automático.
-- [ ] Correo: configurar Cloudflare Email Routing (recibir) + Resend/Brevo (enviar) con el dominio verificado (`docs/CORREO.md`); falta el correo «tu pedido va en camino».
-- [ ] Medir el CPU por petición con Workers Paid; vigilar el middleware experimental.
-- [ ] Incorporar el recorrido de navegador (Playwright) al repositorio: hoy vive fuera de él (13 comprobaciones: compra, envío gratis, pago, panel, ajustes, WhatsApp/redes, sin enlaces al panel).
-- [ ] Copias de seguridad y restauración probada; analítica; SEO final; dominio de correo.
-- [ ] Revocar el token de Cloudflare de desarrollo y regenerar claves antiguas expuestas.
+**Técnicos (orden sugerido)**
+1. [ ] **Servidor Oracle** (`Instance-00-EveMarketAnalyzer`): quitar Docker, swap, Postgres 16 ajustado, base/usuario, copias de seguridad cifradas con restauración probada.
+2. [ ] **Túnel nuevo** de Cloudflare (no tocar `evemarket`) hacia Postgres + Access/service token; **Hyperdrive**; pegar su id en `wrangler.jsonc`.
+3. [ ] Cargar secretos en Cloudflare (`wrangler secret put`), `DATABASE_URL=... npm run db:migrate`, publicar el Worker, asignar `nerova.com.co`; fijar `SITE_URL` y el remitente de correo.
+4. [ ] Decidir la rama (`main`) para que corran `ci.yml`/`deploy.yml`; configurar secretos de GitHub; considerar repositorio privado.
+5. [ ] Correo: Cloudflare Email Routing (recibir) + Resend/Brevo (enviar) con el dominio verificado (`docs/CORREO.md`); falta el correo «tu pedido va en camino».
+6. [ ] Medir el CPU por petición con Workers Paid; vigilar el middleware experimental del adaptador.
+7. [ ] Incorporar al repositorio el recorrido de navegador (Playwright, 13 comprobaciones) que hoy vive fuera de él.
+8. [ ] Pasarela de pago real + webhook que llame a `confirmPaymentAndNotify`.
+9. [ ] Monitoreo de disponibilidad, analítica, SEO final.
+10. [ ] **Limpieza de seguridad al terminar:** revocar el token de Cloudflare, rotar la llave SSH, regenerar claves de Binance antiguas, quitar el runner si se instaló, revisar Cost Analysis de Oracle.
 
 ## 11. Costos esperados
 Correo 0 (Resend 3.000/mes o Brevo ~300/día gratis); dominio `.com.co` ≈ 15 USD/año; Oracle 0 dentro del plan gratuito (alerta de presupuesto); Cloudflare Workers Paid ≈ 5 USD/mes (probable); pasarela de pago: comisión por transacción (por definir). Cifras de terceros: verificar en las páginas oficiales antes de pagar.
@@ -130,3 +143,21 @@ Correo 0 (Resend 3.000/mes o Brevo ~300/día gratis); dominio `.com.co` ≈ 15 U
 - PGlite no crea la carpeta `.data`: `db.ts` la crea. Si el arranque de la base falla, el siguiente intento reintenta (no se queda con la promesa rota).
 - Los archivos de página de Next no pueden exportar utilidades arbitrarias: las constantes compartidas viven en `src/lib/`.
 - En producción (`NODE_ENV=production`, también en el Worker) el simulador de pagos y la contraseña en claro del panel están **desactivados**.
+
+## 14. Retomar en Claude Code (local) — cronología y arranque
+**Qué se hizo en la sesión en la nube (resumen cronológico):** limpieza del proyecto anterior → plan y decisiones de negocio → tienda completa (catálogo, inventario con reservas, carrito, checkout, pagos simulados, panel oculto con auth) → identidad Nerova (4 propuestas de diseño; elegida Obsidiana + Oswald) y modelos familia A → correo de confirmación (cliente + dueño, reenvío desde el panel) → decisión de despliegue B → prueba de compatibilidad con Cloudflare (rama local `spike-cloudflare`, no subida) → soporte de Cloudflare en la rama principal → compra del dominio → auditoría del servidor Oracle → canal de acceso temporal (opcional) → este documento.
+
+**Commits relevantes (rama `claude/eve-hauling-bot-plan-ej6pj5`):** `0b0857c` tienda inicial · `ad5b158` identidad Nerova · `6db6c2a`/`d4dd86a` correo · `8e24232` soporte Cloudflare · `9ee34b1` script de auditoría · `ae8efee` contexto · `d976fcf` canal de acceso temporal.
+
+**Cómo arrancar en tu PC con Claude Code:**
+```bash
+git clone https://github.com/TakahiroKz/bot-eve && cd bot-eve
+git checkout claude/eve-hauling-bot-plan-ej6pj5
+npm install
+cp .env.example .env.local        # ADMIN_PASSWORD de desarrollo y ADMIN_PATH
+npm run dev                        # http://localhost:3000  (panel: /gestion-privada)
+npm test && npm run typecheck      # 24 pruebas
+```
+Pide a Claude Code que lea **`docs/CONTEXTO.md`**, `PLAN.md`, `PENDIENTES.md` y `AGENTS.md` antes de empezar. Ventajas del entorno local: **SSH directo** al servidor Oracle (`ssh -i RUTA ubuntu@IP_DE_LA_CONSOLA`; no hace falta el runner), Playwright y navegador propios, y `wrangler` con sesión local.
+
+**Primer paso recomendado:** SSH a `Instance-00-EveMarketAnalyzer`, ejecutar `bash deploy/oracle/auditar.sh` de nuevo para confirmar el estado y seguir el «Plan para el servidor» de la sección 8. Antes de cualquier acción destructiva o que toque Cloudflare/Oracle, confirmar con el dueño y **no tocar** los recursos de EveMarket.
