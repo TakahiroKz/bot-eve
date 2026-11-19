@@ -9,7 +9,10 @@
 - [ ] **Facturación** como persona natural: validar con un contador el método (factura electrónica o documento equivalente).
 - [ ] **Política de cambios y devoluciones** (derecho de retracto, Ley 1480). Hoy: página con texto provisional.
 - [ ] **Política de datos personales** (Ley 1581) y **términos y condiciones**. Hoy: páginas provisionales.
-- [ ] **Dominio** y proveedor de alojamiento.
+- [ ] **Dominio:** recomendado comprarlo en **Cloudflare Registrar** (a precio de costo; `.com.co` ≈ 15 USD/año, `.co` ≈ 30 USD/año según su tabla de precios; verifica en pricing.registrar.cloudflare.com). Así el DNS queda en Cloudflare sin trámites, y sirve para Email Routing y la verificación SPF/DKIM.
+- [ ] **Alojamiento** de la app (Next.js) por decidir; revisar si el plan gratuito permite uso comercial antes de elegir.
+- [ ] **Base de datos en producción:** Supabase gratis alcanza en tamaño (500 MB), pero **pausa el proyecto tras una semana de poca actividad y no incluye copias de seguridad**; para vender de verdad, plan de pago o una copia de seguridad propia.
+- [ ] **Costos mensuales esperados:** correo 0 (Resend/Brevo gratis a este volumen), dominio ≈ 1–3 USD/mes, base de datos 0 con riesgo o plan de pago, alojamiento por definir.
 
 ## Contenido
 - [ ] Fotos reales de los 6 modelos (hoy: 2 fotos de prueba de Unsplash y marcadores en rojo). Cambiarlas desde `public/products/` y la tabla `product_images` (o desde el panel).
