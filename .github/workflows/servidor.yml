@@ -1,0 +1,27 @@
+name: Servidor (acceso temporal)
+# Ejecuta un comando en el servidor de Oracle mediante un "runner" propio instalado allí.
+# SOLO manual (workflow_dispatch). El repositorio DEBE ser PRIVADO: un runner propio en un repositorio
+# público permite que cualquiera ejecute código en tu servidor desde un fork.
+# Los secretos de Cloudflare se leen de los secretos del repositorio (enmascarados en los registros).
+# Retirar al terminar el despliegue: ver deploy/oracle/revocar-acceso.sh
+on:
+  workflow_dispatch:
+    inputs:
+      comando:
+        description: "Comando bash a ejecutar en el servidor"
+        required: true
+        type: string
+concurrency:
+  group: servidor
+  cancel-in-progress: false
+jobs:
+  ejecutar:
+    runs-on: [self-hosted, nerova-oracle]
+    timeout-minutes: 30
+    steps:
+      - name: Ejecutar comando
+        env:
+          COMANDO: ${{ inputs.comando }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: bash -o pipefail -c "$COMANDO"
