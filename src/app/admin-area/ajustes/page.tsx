@@ -15,6 +15,14 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <h2 style={{ fontSize: "1.1rem" }}>Tienda</h2>
         <div className="field"><label>Nombre de la tienda</label><input type="text" name="store_name" defaultValue={s.storeName} /></div>
         <div className="field"><label>Correo de contacto</label><input type="email" name="support_email" defaultValue={s.supportEmail} /></div>
+        <h2 style={{ fontSize: "1.1rem" }}>Datos legales del vendedor</h2>
+        <p className="muted">Se muestran en los términos, la política de datos y la de cambios. La ley de comercio electrónico exige identificar al vendedor: completa estos campos.</p>
+        <div className="row">
+          <div className="field"><label>Nombre completo del titular</label><input type="text" name="legal_name" defaultValue={s.legalName} autoComplete="off" /></div>
+          <div className="field"><label>Documento (C.C. o NIT)</label><input type="text" name="legal_id" defaultValue={s.legalId} autoComplete="off" /></div>
+          <div className="field"><label>Dirección</label><input type="text" name="legal_address" defaultValue={s.legalAddress} autoComplete="off" /></div>
+          <div className="field"><label>Ciudad y departamento</label><input type="text" name="legal_city" defaultValue={s.legalCity} autoComplete="off" /></div>
+        </div>
         <h2 style={{ fontSize: "1.1rem" }}>Envíos</h2>
         <div className="row">
           <div className="field"><label>Tarifa de envío (COP)</label><input type="number" name="shipping_fee" min={0} step={500} defaultValue={s.shippingFee} /></div>

@@ -8,6 +8,10 @@ export interface Settings {
   whatsapp: string; // solo dígitos con indicativo, p. ej. 573001234567
   whatsappMessage: string;
   supportEmail: string;
+  legalName: string;
+  legalId: string;
+  legalAddress: string;
+  legalCity: string;
   instagram: string;
   facebook: string;
   tiktok: string;
@@ -22,7 +26,11 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   delivery_days: "3",
   whatsapp: "",
   whatsapp_message: "Hola, quiero información sobre las chaquetas.",
-  support_email: "",
+  support_email: "contacto@nerova.com.co",
+  legal_name: "",
+  legal_id: "",
+  legal_address: "",
+  legal_city: "",
   instagram: "",
   facebook: "",
   tiktok: "",
@@ -46,7 +54,11 @@ export async function getSettings(db?: Db): Promise<Settings> {
     deliveryDays: Math.max(1, int(m.delivery_days, 3)),
     whatsapp: m.whatsapp.replace(/\D/g, ""),
     whatsappMessage: m.whatsapp_message,
-    supportEmail: m.support_email,
+    supportEmail: m.support_email.trim() || "contacto@nerova.com.co",
+    legalName: m.legal_name,
+    legalId: m.legal_id,
+    legalAddress: m.legal_address,
+    legalCity: m.legal_city,
     instagram: m.instagram,
     facebook: m.facebook,
     tiktok: m.tiktok,

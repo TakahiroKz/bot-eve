@@ -43,6 +43,7 @@ export async function Footer() {
         <div>
           <h4>Ayuda</h4>
           <ul>
+            <li><Link href="/politicas/envios">Envíos</Link></li>
             <li><Link href="/politicas/cambios">Cambios y devoluciones</Link></li>
             <li><Link href="/politicas/datos">Tratamiento de datos</Link></li>
             <li><Link href="/politicas/terminos">Términos y condiciones</Link></li>
